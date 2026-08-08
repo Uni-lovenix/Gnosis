@@ -158,7 +158,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="KB Server",
         version="0.1.0",
-        description="Personal Knowledge Base backend: parsing, embedding, search.",
+        description="灵知 (Gnosis) 后端：文件解析、embedding、向量检索。",
     )
 
     data_dir = Path(settings.data_dir).expanduser()

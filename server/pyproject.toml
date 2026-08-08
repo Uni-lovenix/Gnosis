@@ -1,7 +1,7 @@
 [project]
 name = "kb-server"
 version = "0.1.0"
-description = "Personal Knowledge Base backend (FastAPI): file parsing, embedding, multi-datasource."
+description = "灵知 (Gnosis) 后端 (FastAPI): 文件解析、embedding、多数据源。"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

@@ -1,4 +1,4 @@
-# 质量文档 -- 个人知识库
+# 质量文档 -- 灵知 (Gnosis)
 
 ## 评级标准
 
@@ -25,7 +25,7 @@
 
 ## 当前快照
 
-- 项目：个人知识库
+- 项目：灵知 (Gnosis)
 - 需求：1. 支持多数据源配置（elasticsearch、postgresql、mysql、向量数据库）
 2. 文件导入（excel、word、pdf、markdown）
 3. embedding 模型 bge-m3

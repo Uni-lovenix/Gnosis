@@ -1,4 +1,4 @@
-# Session Progress Log -- 个人知识库
+# Session Progress Log -- 灵知 (Gnosis)
 
 ## Current State
 

@@ -1,5 +1,5 @@
 {
-  "project": "个人知识库",
+  "project": "灵知 (Gnosis)",
   "description": "1. 支持多数据源配置（最少支持elasticsearch，postgresql，mysql，向量数据库）\n2. 支持文件导入功能，包括：excel，word，pdf，markdown等\n3. 要能向量化数据，支持embedding模型，模型使用bge-m3\n4. 数据向量化后存入存入数据库",
   "last_updated": "2026-08-04T14:35:00.000Z",
   "status_legend": {

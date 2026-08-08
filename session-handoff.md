@@ -1,4 +1,4 @@
-# Session Handoff -- 个人知识库
+# Session Handoff -- 灵知 (Gnosis)
 
 ## Current Objective
 

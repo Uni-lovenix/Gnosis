@@ -83,5 +83,5 @@
 - **不**做"任何异常都重试"——配置错误的 4xx 重试只会浪费时间，让用户立即看见清晰错误更有价值。
 - **不**改抽象契约：retry 是 openai-compat 的实现细节，其它 embedder 不背这个复杂度。mock-hash 没网络问题；bge-m3 本地推理不需要重试。
 - **不**引入第三方 retry 库（如 `tenacity`）——单文件 ~30 行可解决，避免新依赖。
-- jitter 默认 10%：是个人知识库的 desktop 用户规模，雪崩风险低，但仍然是好习惯。
+- jitter 默认 10%：是灵知 (Gnosis) 的 desktop 用户规模，雪崩风险低，但仍然是好习惯。
 - `kb_status_code` / `kb_retryable` 是绑定到 `EmbedderError` 的辅助 attr，不影响既有 `EmbedderError` 契约；调用方依赖 `isinstance(e, EmbedderError)` 即可。

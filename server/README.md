@@ -1,4 +1,4 @@
-# KB Server -- 个人知识库后端
+# KB Server -- 灵知 (Gnosis) 后端
 
 FastAPI 服务，承载文件解析、embedding、向量存储与检索。
 

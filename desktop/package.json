@@ -1,7 +1,7 @@
 {
   "name": "kb-desktop",
   "version": "0.1.0",
-  "description": "Personal Knowledge Base desktop app (Electron + React + TypeScript).",
+  "description": "灵知 (Gnosis) 桌面端 (Electron + React + TypeScript)。",
   "main": "dist/main/index.js",
   "author": "KB Team",
   "license": "MIT",

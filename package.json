@@ -1,8 +1,8 @@
 {
-  "name": "personal-knowledge-base",
+  "name": "gnosis",
   "version": "0.1.0",
   "private": true,
-  "description": "Aggregate npm scripts entry for the Python (server/) + Electron (desktop/) project.",
+  "description": "灵知 (Gnosis) — 本地知识库。聚合 npm scripts 入口，包 Python (server/) + Electron (desktop/)。",
   "scripts": {
     "check": "npm --prefix desktop run check",
     "lint": "npm --prefix desktop run lint",
