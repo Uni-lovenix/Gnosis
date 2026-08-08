@@ -1,0 +1,57 @@
+{
+  "version": "1",
+  "description": "End-to-end retrieval evaluation set. Each case pairs a query with a set of expected snippets that must appear in any of the top-k hits.",
+  "pass_threshold": 0.6,
+  "cases": [
+    {
+      "id": "kb-01",
+      "query": "what is the project root structure",
+      "must_contain_any": ["project root", "kb-server", "desktop/", "server/"]
+    },
+    {
+      "id": "kb-02",
+      "query": "how do I add a new datasource",
+      "must_contain_any": ["register_datasource", "DataSource", "add()", "DatasourceConfig"]
+    },
+    {
+      "id": "kb-03",
+      "query": "embedding model name",
+      "must_contain_any": ["BAAI/bge-m3", "bge-m3", "BGE-M3"]
+    },
+    {
+      "id": "kb-04",
+      "query": "supported file types",
+      "must_contain_any": ["excel", "word", "pdf", "markdown"]
+    },
+    {
+      "id": "kb-05",
+      "query": "chunk overlap",
+      "must_contain_any": ["overlap", "chunk_size", "paragraph"]
+    },
+    {
+      "id": "kb-06",
+      "query": "postgresql vector extension",
+      "must_contain_any": ["pgvector", "vector(", "CREATE EXTENSION"]
+    },
+    {
+      "id": "kb-07",
+      "query": "elasticsearch dense vector",
+      "must_contain_any": ["dense_vector", "cosine", "knn"]
+    },
+    {
+      "id": "kb-08",
+      "query": "mysql vector storage approach",
+      "must_contain_any": ["JSON", "cosine", "small_dataset"]
+    },
+    {
+      "id": "kb-09",
+      "query": "milvus backend",
+      "must_contain_any": ["Milvus", "pymilvus", "COSINE"]
+    },
+    {
+      "id": "kb-10",
+      "query": "fastapi health endpoint",
+      "must_contain_any": ["/v1/health", "health", "embed_backend"]
+    }
+  ]
+}

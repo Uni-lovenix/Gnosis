@@ -1,0 +1,278 @@
+{
+  "project": "个人知识库",
+  "description": "1. 支持多数据源配置（最少支持elasticsearch，postgresql，mysql，向量数据库）\n2. 支持文件导入功能，包括：excel，word，pdf，markdown等\n3. 要能向量化数据，支持embedding模型，模型使用bge-m3\n4. 数据向量化后存入存入数据库",
+  "last_updated": "2026-08-04T14:35:00.000Z",
+  "status_legend": {
+    "not_started": "功能还没开始做。",
+    "in_progress": "这个功能是当前唯一正在进行的任务。",
+    "blocked": "还在规划中。",
+    "pass": "要求的验证已经通过，并且证据已经记录。"
+  },
+  "features": [
+    {
+      "id": "harness-bootstrap",
+      "name": "Harness and Team Bootstrap",
+      "description": "初始化 RUP harness 文件、评分文件、多智能体团队配置和规则入口。",
+      "dependencies": [],
+      "status": "pass",
+      "evidence": "已生成 AGENTS.md、CLAUDE.md、feature_list.json、progress.md、session-handoff.md、quality-document.md、evaluator-rubric.md、clean-state-checklist.md、init.sh、docs/PROCESS.md、AGENTS.team.md、agents.json 和 agents/ 角色文件。",
+      "testedAt": "2026-08-03T15:49:35.637Z",
+      "rupPhase": "inception",
+      "iteration": "harness-bootstrap",
+      "ownerRole": "Agent Team Studio"
+    },
+    {
+      "id": "feat-inception-scope",
+      "name": "启动范围确认",
+      "description": "规划者完成启动阶段：确认项目边界、核心目标、约束和初始风险，形成初始迭代计划。",
+      "dependencies": ["harness-bootstrap"],
+      "status": "pass",
+      "evidence": "docs/inception/01-project-scope.md（范围与目标）、docs/inception/02-initial-risks.md（初始风险与依赖）、docs/inception/03-initial-iteration-plan.md（迭代编排）已生成；init.sh 校验通过。",
+      "testedAt": "2026-08-03T16:00:00.000Z",
+      "rupPhase": "inception",
+      "iteration": "启动范围确认",
+      "ownerRole": "规划者"
+    },
+    {
+      "id": "feat-elaboration-architecture",
+      "name": "架构与风险细化",
+      "description": "规划者完成细化阶段：确定技术基线、细化风险与依赖、形成构建迭代协议。",
+      "dependencies": ["feat-inception-scope"],
+      "status": "pass",
+      "evidence": "docs/elaboration/01-architecture-baseline.md（模块边界、数据流、接口契约、技术选型、目录结构）、02-risk-update.md（含新增风险 R11-R15 与依赖排序）、03-iteration-protocols.md（C1-C4 + T1 协议）已生成。",
+      "rupPhase": "elaboration",
+      "iteration": "架构与风险细化",
+      "ownerRole": "规划者"
+    },
+    {
+      "id": "feat-construction-1",
+      "name": "数据与报表开发迭代",
+      "description": "按迭代协议完成“数据与报表开发者”责任区块的交付并通过评估。",
+      "dependencies": [
+        "feat-elaboration-architecture"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/c1-data-sources.md（模块清单、能力矩阵、验证证据）；docs/construction/c1-evaluation.md（评估 5/5 通过）；server/app/datasources/{base,elasticsearch_adapter,postgres_adapter,mysql_adapter,vector_db_adapter,factory,registry}.py；server/app/api/{datasources,health}.py；server/app/main.py；server/tests/datasources 31 项单测通过；TestClient 端到端验证 4 个端点。",
+      "testedAt": "2026-08-04T00:05:00.000Z",
+      "evidence": "",
+      "rupPhase": "construction",
+      "iteration": "construction-1",
+      "ownerRole": "数据与报表开发者"
+    },
+    {
+      "id": "feat-construction-2",
+      "name": "文件与同步开发迭代",
+      "description": "按迭代协议完成“文件与同步开发者”责任区块的交付并通过评估。",
+      "dependencies": [
+        "feat-construction-1"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/c2-files-and-sync.md（模块清单、设计要点、验证证据）；docs/construction/c2-evaluation.md（评估 5/5）；server/app/parsers/{excel,word,pdf,markdown,_common}.py；server/app/chunking/text_chunker.py；server/app/observability/task_store.py；server/app/api/files.py；pytest 57 passed 含 4 类解析器+切片器+任务存储+files API。",
+      "testedAt": "2026-08-04T00:30:00.000Z",
+      "evidence": "",
+      "rupPhase": "construction",
+      "iteration": "construction-2",
+      "ownerRole": "文件与同步开发者"
+    },
+    {
+      "id": "feat-construction-3",
+      "name": "AI 与智能体开发迭代",
+      "description": "按迭代协议完成“AI 与智能体开发者”责任区块的交付并通过评估。",
+      "dependencies": [
+        "feat-construction-2"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/c3-ai-embedding.md（模块清单、流水线图、评测结果）；docs/construction/c3-evaluation.md（评估 5/5）；server/app/embedding/{base,bge_m3,openai_compat,mock_embedder,factory}.py；server/app/pipeline/{indexing,retrieval}.py；server/app/api/search.py；server/eval/{fixtures/cases.json,corpus/snippets.md,run_eval.py,README.md}；pytest 73 passed；eval 命中率 9/10 (90%) ≥ 60% 门禁。",
+      "testedAt": "2026-08-04T00:50:00.000Z",
+      "evidence": "",
+      "rupPhase": "construction",
+      "iteration": "construction-3",
+      "ownerRole": "AI 与智能体开发者"
+    },
+    {
+      "id": "feat-construction-4",
+      "name": "多端体验开发迭代",
+      "description": "按迭代协议完成“多端体验开发者”责任区块的交付并通过评估。",
+      "dependencies": [
+        "feat-construction-3"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/c4-multi-experience.md（模块清单、架构边界、状态机、验证证据、手工 e2e）；docs/construction/c4-evaluation.md（评估 5/5）；desktop/ 下 3 个 tsconfig + Vite 全部类型检查 0 错误；Vite build 产物 147.73 kB；server-manager Node test 2/2 通过；桌面端 IPC 通道仅在 preload 暴露。",
+      "testedAt": "2026-08-04T01:10:00.000Z",
+      "evidence": "",
+      "rupPhase": "construction",
+      "iteration": "construction-4",
+      "ownerRole": "多端体验开发者"
+    },
+    {
+      "id": "feat-transition-handoff",
+      "name": "移交与文档交接",
+      "description": "完成最终验收、运行与交付文档、已知问题清单和跨会话交接。",
+      "dependencies": [
+        "feat-construction-4"
+      ],
+      "status": "pass",
+      "evidence": "顶层 README.md、docs/API.md、docs/RUNBOOK.md、docs/KNOWN_ISSUES.md、docs/transition/README.md、session-handoff.md（已更新为全 pass）。bash init.sh 通过；server pytest 73 passed；desktop 3 tsconfig 0 errors + Vite build 成功；server eval 9/10 (90%) ≥ 60% 门槛。",
+      "testedAt": "2026-08-04T01:20:00.000Z",
+      "evidence": "",
+      "rupPhase": "transition",
+      "iteration": "transition-1",
+      "ownerRole": "文档与交接负责人"
+    },
+    {
+      "id": "feat-construction-5",
+      "name": "已知问题修复迭代（KI-04 / KI-05 / KI-06）",
+      "description": "收敛 KI-04 Documents API、KI-05 electron-builder 打包、KI-06 真实 BGE-M3 评测。",
+      "dependencies": [
+        "feat-transition-handoff"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/c5-known-issues.md（迭代协议）+ c5-evaluation.md（评估 4.75/5）。KI-04：MetaDB.getDocument/deleteDocument + KBAPI 扩展 + DocumentsPage 真实目录 + 错误态 + 删除确认；desktop 3 tsconfig 0 errors；Vite build 148.70 kB；server-manager 2/2。KI-05：electron-builder.yml 三平台 + pack/dist/dist:{mac,win,linux} 脚本 + README 打包章节 + 平台 note。KI-06：scripts/download_bge_m3.sh（idempotent） + eval/run_eval.py --embedder {mock,bge-m3} + server/eval/README.md（真实模型门禁 80%）。server pytest 73 passed 不回归；mock eval 9/10 = 90%；bge-m3 路径缺依赖时报清晰 EmbedderError。",
+      "testedAt": "2026-08-04T01:50:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "construction-5",
+      "ownerRole": "多端体验开发者 / AI 与智能体开发者 / 文档与交接负责人"
+    },
+    {
+      "id": "feat-ki09-task-cleanup",
+      "name": "KI-09 任务表过期清理",
+      "description": "为 TaskStore 增加显式过期清理入口，按 TTL 仅删除 done/failed 终态任务，保留 queued/running。",
+      "dependencies": [
+        "feat-construction-5"
+      ],
+      "status": "pass",
+      "evidence": "server/app/observability/task_store.py 新增 purge_stale(ttl_days=30)，按 updated_at 截止时间清理 done/failed 任务并返回删除行数；server/tests/test_task_store.py 新增 4 项测试覆盖旧终态被删除、活动任务保留、非正 TTL 拒绝、updated_at vs created_at 边界；server pytest 77 passed；docs/KNOWN_ISSUES.md 将 KI-09 移入 C5 收敛表。",
+      "testedAt": "2026-08-04T01:55:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "construction-6",
+      "ownerRole": "文件与同步开发者"
+    },
+    {
+      "id": "feat-ki07-milvus-tests",
+      "name": "KI-07 Milvus 1:1 单测",
+      "description": "为 Milvus 向量适配器补齐与内存后端 1:1 对应的单测，并提供 docker 启动脚本与 README。",
+      "dependencies": [
+        "feat-ki09-task-cleanup"
+      ],
+      "status": "pass",
+      "evidence": "server/app/datasources/vector_db_adapter.py 修复 _MilvusBackend 显式 VARCHAR 主键 schema（max_length=64 + auto_id=False），规避 pymilvus ≥ 3 默认 int64；server/tests/datasources/conftest.py 提供 milvus_uri/milvus_collection fixture，19530 不可达时 pytest.skip；server/tests/datasources/test_milvus_adapter.py 8 用例与 test_vector_adapter.py 1:1 对应；scripts/start_milvus.sh + scripts/stop_milvus.sh 幂等拉起 milvusdb/milvus:v2.4.10-standalone；server/README.md 与 server/tests/datasources/README.md 写明 docker / Lite 双路径。KB_MILVUS_URI=./kb_milvus_lite.db pytest 8/8 通过；全套 85 passed（77 + 8）；无 Milvus 时 8 skipped 且非零失败。docs/KNOWN_ISSUES.md 将 KI-07 移入 C6 收敛表。",
+      "testedAt": "2026-08-04T02:15:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "construction-7",
+      "ownerRole": "数据与报表开发者"
+    },
+    {
+      "id": "feat-ki02-mysql-perf",
+      "name": "KI-02 MySQL O(N) 性能收敛",
+      "description": "为 MySQL 适配器加结构化告警（构造期 small_dataset_only + 检索期 scan_limit_hit）、capabilities 补充 scan_limit_risk，并在 RUNBOOK / API.md / server README 文档化切到 pgvector / Milvus 的降级路径。",
+      "dependencies": [
+        "feat-ki07-milvus-tests"
+      ],
+      "status": "pass",
+      "evidence": "server/app/datasources/mysql_adapter.py docstring 顶部声明 KI-02 mitigation；__init__ 末尾加 mysql.adapter.initialized (info) 与 mysql.adapter.small_dataset_only (warning) 两事件；search() 在 len(rows) >= max_scan_rows 时打 mysql.adapter.scan_limit_hit warning（附 scanned_rows / max_scan_rows / hint），截断语义不变；capabilities() 返回 {metadata_filter, small_dataset_only, scan_limit_risk}。server/tests/datasources/test_mysql_adapter.py 新增 4 项单测（capabilities / init warning / scan_limit_hit 触发 / 不触发），均使用 structlog.testing.capture_logs。pytest tests/datasources/test_mysql_adapter.py 11/11 通过；KB_MILVUS_URI=./kb_milvus_lite.db pytest 全套 89 passed（原 85 + 4）；grep 三个事件名 9 处命中。docs/RUNBOOK.md §3 重写为 “如何判断 + 何时切 + 切到哪” 三段，含 pgvector / Milvus 两段迁移示例并明示 “无 dump CLI” 边界；docs/API.md 在 GET /v1/datasources 章节补充 capabilities 字段含义；server/README.md MySQL 行加警告并反链 RUNBOOK §3。docs/KNOWN_ISSUES.md KI-02 移入 C7 收敛表。docs/construction/c7-mysql-perf.md（协议） + c7-evaluation.md（评估 5/5 Accept）。bash init.sh 通过。",
+      "testedAt": "2026-08-04T14:35:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "construction-8",
+      "ownerRole": "数据与报表开发者"
+    },
+    {
+      "id": "feat-goal-mapping",
+      "name": "goal.md → 实际项目栈映射 + 根级 npm scripts 聚合",
+      "description": "goal.md 是 Node.js TypeScript 单体项目模板，实际项目是 Python 后端（server/）+ Electron 桌面端（desktop/）。本轮把 goal.md 的功能验收与验证命令映射到实际项目，并在根目录新建 package.json 提供聚合 npm scripts（check/lint/test:unit/test:integration/eval/build/dev/start/verify），不动 desktop/package.json 的 start/build/dev。",
+      "dependencies": [
+        "feat-ki02-mysql-perf"
+      ],
+      "status": "pass",
+      "evidence": "docs/goal/01-mapping.md（目录结构 + 验收项 + 验证命令三层映射表）写入；根级 package.json 新建（private, no deps），scripts 含 check/lint/test/test:unit/test:integration/eval/build/dev/start/verify，desktop 与 server 子目录通过 --prefix 调用；npm run check 0 errors（= tsc --noEmit -p tsconfig.json）；npm run lint 0 errors（桌面端 lint 约定即 tsc --noEmit）；npm run test:unit 89 passed in 2.74s（KB_MILVUS_URI=./kb_milvus_lite.db python3 -m pytest -p no:warnings tests/）；npm run test:integration 89 passed in 2.59s；npm run eval 9/10 = 90%（rate 0.9 ≥ 60% 门槛）；npm run build Vite 148.70 kB + tsc 0 errors。desktop/package.json 的 start/build/dev/lint 未触碰；migrations/ 与 .github/workflows/ 未触碰；docs/elaboration/01-architecture-baseline.md 与 docs/API.md 未变更（接口未改）。feature_list.json 13/13 pass；progress.md / session-handoff.md 加入 G1 记录与决策。",
+      "testedAt": "2026-08-04T22:55:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-mapping",
+      "ownerRole": "文档与交接负责人"
+    },
+    {
+      "id": "feat-goal-config-crud",
+      "name": "数据源配置 CRUD 持久化（G2）",
+      "description": "补齐 goal.md 第 16 条“添加 / 编辑 / 删除数据源连接信息”：后端 DatasourceStore (v1 schema、原子写、损坏自愈) + 5 个新 endpoints；启动期按 active 配置加载默认 datasource；桌面端 SettingsPage Add/Edit/Save/Test/Activate/Delete/Clear active 完整闭环 + toast 反馈。",
+      "dependencies": [
+        "feat-goal-mapping"
+      ],
+      "status": "pass",
+      "evidence": "server/app/observability/datasource_store.py (v1 schema, atomic os.replace, corrupt-file backup)；server/app/api/datasources.py 新增 GET/POST/DELETE /v1/datasources/configs + GET/PUT/DELETE /v1/datasources/active；server/app/main.py _resolve_default_datasource helper；tests/test_datasource_store.py 16/16 + tests/test_datasource_configs_api.py 8/8 全过；server pytest 89 → 113 passed；desktop/src/shared/types.ts KBAPI +6 方法；desktop/src/main/api-client.ts ApiClient 实现；desktop/src/main/index.ts IPC 绑定；desktop/src/preload/index.ts contextBridge；desktop/src/renderer/pages/SettingsPage.tsx 完整 CRUD UI；desktop/src/renderer/styles.css .kb-configs/.kb-row-active/.kb-toast*；desktop npm run check 0 errors / npm run lint 0 errors / npm run build Vite 152.27 kB / tsc 0 errors；docs/API.md §数据源 CRUD + docs/RUNBOOK.md §“数据源配置管理”(5 类 options 模板 + 排错) + docs/goal/01-mapping.md “配置管理”行升级；端到端 smoke：POST/GET/PUT/DELETE 全部 200；active 配置在 _build_default_components() 输出 ds.name='mem' + 日志 datasource.from_saved；缺依赖时清晰 400（“elasticsearch package not installed. pip install -e '.[es]'.”）。",
+      "testedAt": "2026-08-05T05:20:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-config-crud",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者"
+    },
+    {
+      "id": "feat-goal-bge-m3-ollama",
+      "name": "真实 bge-m3 经 Ollama 端到端验证（G3）",
+      "description": "KI-06 收敛：用 Ollama bge-m3:latest (1024-dim) 通过 OpenAI 兼容接口打 /v1/embeddings，跑通 server 启动 → 文件导入 → 语义检索全链路；eval 10/10 = 100%。",
+      "dependencies": [
+        "feat-goal-config-crud"
+      ],
+      "status": "pass",
+      "evidence": "scripts/start_server_ollama.sh（一键启动，KB_EMBED_BACKEND=openai-compat + KB_OPENAI_BASE_URL=http://127.0.0.1:11434/v1 + KB_OPENAI_MODEL=bge-m3）；server/eval/run_eval.py 新增 openai-compat 分支；根级 package.json 新增 server:ollama / eval:ollama / eval:bgem3 三个 scripts；npm run eval:ollama 10/10 = 100% (mock 9/10)；端到端 smoke：/v1/health embed_backend=openai-compat；/v1/files/import README.md → 3 chunks embedded=3 status=done；/v1/search 三条查询：相关 0.55/0.44、0.46/0.44；无关 0.33/0.33（语义降级正确）；docs/KNOWN_ISSUES.md KI-06 移入收敛表；docs/RUNBOOK.md §2 Ollama 启动 + 排错（BAAI/bge-m3 404 修复说明、11434 连接拒绝、base_url/api_key 启动失败）；docs/goal/01-mapping.md G3 行。",
+      "testedAt": "2026-08-05T05:45:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-bge-m3-ollama",
+      "ownerRole": "AI 与智能体开发者"
+    },
+    {
+      "id": "feat-goal-real-elasticsearch",
+      "name": "真实 Elasticsearch 当默认数据源 (G4)",
+      "description": "用 ES 9.5.0 + elastic 凭证做真存储：datasources.json 写入 active=es-prod；启动期 datasource.from_saved；import 走 ES（index 自动创建 bbq_hnsw 1024-dim cosine）；search 真命中 0.74+。",
+      "dependencies": [
+        "feat-goal-bge-m3-ollama",
+        "feat-goal-config-crud"
+      ],
+      "status": "pass",
+      "evidence": "/v1/datasources/configs name=es-prod options={hosts:[http://127.0.0.1:9200],index=kb_chunks,dim=1024,username=elastic,password=WtMmbgkw,verify_certs:false} → 200；/v1/datasources/test → ok=true,latency_ms=6.13,message=9.5.0；/v1/datasources/active/es-prod → 200；datasources.json active=es-prod；重启后启动日志 datasource.from_saved name=es-prod type=elasticsearch；/v1/files/import README.md → task_id=...,chunks=4,embedded=4,written=4 + 日志 elasticsearch.index.created index=kb_chunks；/v1/search 'embedding 模型选用什么' top_k=3 → score=0.7415/0.7415/0.7371；_count 8 chunks；_mapping 显示 vector.dims=1024 similarity=cosine index_options.type=bbq_hnsw；docs/RUNBOOK.md §3a 真实 ES 接入示例（修复早期 url→hosts 字段错误）；progress.md / session-handoff.md G4 记录。",
+      "testedAt": "2026-08-05T06:05:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-real-elasticsearch",
+      "ownerRole": "数据与报表开发者"
+    },
+    {
+      "id": "feat-ki03-retry-backoff",
+      "name": "OpenAI 兼容远端重试退避（G5 / KI-03 收敛）",
+      "description": "为 OpenAICompatEmbedder 增加指数退避重试：仅对 httpx.TransportError / HTTP 5xx / 429 重试，4xx 立即抛；可调 max_retries / initial_backoff / max_backoff / backoff_jitter；每次重试打 embedder.retry warning 日志。",
+      "dependencies": [
+        "feat-goal-bge-m3-ollama"
+      ],
+      "status": "pass",
+      "evidence": "server/app/embedding/openai_compat.py 新增 _is_retryable_response + _backoff_for + 重试主循环 + kb_status_code/kb_retryable 标记；options 增 max_retries=3 / initial_backoff=0.5 / max_backoff=8 / backoff_jitter=0.1；server/tests/embedding/test_embedders.py 提取 _Resp 到模块级 + 新增 _ScriptedTransport / _RecordingClient；新增 7 项单测（瞬时错误重试至成功 / 耗尽抛错含 attempts 数 + 原异常类 / 4xx 不重试无 sleep / 429 重试 / 5xx (502/503) 重试 / 退避数学阶梯 [0.5,1.0,2.0,2.0] / embedder.retry 日志 capture_logs 断言 event + log_level=warning + attempt + max_attempts=4 + error_kind）。npm run test:unit 113 → 120 passed；npm run check / lint 0 errors；npm run build Vite 152.27 kB 不变。docs/RUNBOOK.md §2a 增调参与不重试矩阵；docs/KNOWN_ISSUES.md KI-03 移入收敛表；docs/goal/01-mapping.md 向量化行增 KI-03 引用 + 已完成段补 G5；docs/construction/g5-retry-backoff.md 协议；progress.md / session-handoff.md G5 记录；feature_list.json 16/16 → 17/17 pass。",
+      "testedAt": "2026-08-05T07:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-retry-backoff",
+      "ownerRole": "AI 与智能体开发者"
+    },
+    {
+      "id": "feat-goal-upload-progress",
+      "name": "上传进度可观测性（G6）",
+      "description": "为 ImportPage 增加 stage 文字（解析中 / 切片中 / Embedding 中 / 写入中）+ 折叠事件日志（最近 32 条带时间戳的 stage 转场）。后端 TaskStore v1 schema 迁移（stage 列 + task_events ring buffer）；IndexingPipeline.on_progress 签名升级到 ProgressEvent；新增 GET /v1/files/tasks/{id}/events 备用端点。",
+      "dependencies": [
+        "feat-ki03-retry-backoff"
+      ],
+      "status": "pass",
+      "evidence": "server/app/observability/models.py 新增 TaskStage 枚举 + TaskEvent 模型 + TaskStatus 扩展 stage + events；server/app/observability/task_store.py v1 schema 迁移（ALTER TABLE 幂等 + task_events 表 + ring buffer 32 + PRAGMA user_version=1）+ add_event / list_events / list_events_since / last_event_id；server/app/pipeline/indexing.py IndexingPipeline.on_progress 签名升级到 Callable[[ProgressEvent], None]（4 处边界发事件）；server/app/api/files.py _run_import 接入 stage + 新增 GET /v1/files/tasks/{task_id}/events?since_id=；desktop/src/shared/types.ts + desktop/src/main/api-client.ts 加 TaskStage/TaskEvent/TaskStatus 扩展；desktop/src/renderer/lib/state.ts AppState.indexing 加 stage/events/lastMessage；desktop/src/renderer/pages/ImportPage.tsx 重写：进度条 + 阶段 tag + 折叠 details 事件日志；desktop/src/renderer/styles.css 加 .kb-stage-tag + .kb-stage-* + .kb-event-log 系列样式。测试：server/tests/test_task_store.py +7 项（stage round-trip / 默认值 / add_event / ring buffer 32 / since_id 分页 / last_event_id / schema 迁移）；server/tests/api/test_task_progress_api.py 新建 +5 项（端到端 stage + events / /events 全量 / since_id / 404 / 旧负载 fallback）；server/tests/pipeline/test_pipelines.py 升级到 ProgressEvent。pytest tests/ 113 → 125 passed（+12 G6 new）；npm run verify 120 → 125 passed；npm run check 0 errors；npm run lint 0 errors；npm run build Vite 152.27 → 153.74 kB（+1.47 kB，远低于 +5 kB 目标）。docs/API.md §TaskStatus 加 stage + events + /events 段；docs/RUNBOOK.md §4a 上传进度可观测性；docs/goal/01-mapping.md G6 行；docs/construction/g6-upload-progress.md 协议；progress.md / session-handoff.md G6 记录；feature_list.json 17 → 18 pass。",
+      "testedAt": "2026-08-06T14:35:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-upload-progress",
+      "ownerRole": "AI 与智能体开发者 / 多端体验开发者"
+    },
+    {
+      "id": "feat-goal-es-browse",
+      "name": "ES 数据浏览页（G7）",
+      "description": "新增 BrowsePage 浏览 ES 中存储的 chunk 数据：列出每条 chunk（chunk_id / document_id / parser / 文本预览 / 可折叠 metadata），按 document_id 聚合展示同一文件的 chunk 数；支持按 parser 下拉、按 document_id 输入过滤 + 分页。后端给 ES 适配器增加 list_chunks 方法、新增 GET /v1/chunks 端点；前端新建 BrowsePage、加 Tab、加 IPC。",
+      "dependencies": [
+        "feat-goal-real-elasticsearch"
+      ],
+      "status": "pass",
+      "evidence": "server/app/datasources/base.py 新增 NotSupportedError + DataSource.list_chunks/aggregate_by_document 默认抛 NotSupportedError；server/app/observability/models.py 新增 ChunkSummary + DocumentSummary；server/app/datasources/elasticsearch_adapter.py capabilities() 增 chunk_list；实现 list_chunks (match_all + bool filter on document_id/metadata.parser + from/size + sort + text 服务端截 240 字) + aggregate_by_document (terms agg on document_id size=1000 + 嵌套 terms on metadata.parser + top_hits sample + 异常降级为空 dict)；server/app/api/chunks.py 新建 GET /v1/chunks?document_id&parser&offset&limit 返回 BrowseResponse {chunks, total, aggregations}，400/422 非法参数、501 capability 缺失、503 active 未绑定；server/app/main.py 启动期 chunks_api.set_active_datasource(ds) 绑定；desktop/src/shared/types.ts + desktop/src/main/api-client.ts 加 ChunkSummary/DocumentSummary/BrowseResponse/BrowseOpts + ApiClient.browseChunks(opts)；desktop/src/preload/index.ts + desktop/src/main/index.ts 加 browseChunks IPC handler；desktop/src/renderer/App.tsx Tab union 加 browse；desktop/src/renderer/pages/BrowsePage.tsx 新建：active ds 角标 + 永久 .kb-banner-warn (不支持 capability) + parser 下拉 + document_id 输入 (250ms debounce) + 文档聚合表 (点击行=应用 document_id 过滤) + chunk 列表 (preview + <details> 折叠 JSON metadata) + 分页 (prev/next + offset/limit + total) + 错误 toast；desktop/src/renderer/styles.css 加 .kb-chunks / .kb-agg-table / .kb-banner-warn / .kb-browse-filters / .kb-pagination 系列样式。测试：server/tests/datasources/test_elasticsearch_adapter.py 扩 5 项 (list_chunks 分页/sort/截断/过滤；aggregate 分组；ES 异常降级；capabilities 含 chunk_list)；server/tests/api/test_chunks_api.py 新建 7 项 (200 完整 / 过滤参数 / limit 非法 / 负 offset / 501 capability / 503 active / aggregate NotSupportedError → 501)。pytest tests/ 125 → 136 passed (+11 G7 new)；npm run verify 125 → 136 全绿；npm run check 0 errors；npm run lint 0 errors；npm run build Vite 153.74 → 158.61 kB (+4.87 kB)。docs/API.md §浏览 新增 GET /v1/chunks 段；docs/RUNBOOK.md §4b ES 数据浏览 + §3 capability 列表增 chunk_list；docs/goal/01-mapping.md G7 行 + 已完成段；docs/construction/g7-es-browse.md 协议；progress.md / session-handoff.md G7 记录；feature_list.json 18 → 19 pass。",
+      "testedAt": "2026-08-06T14:50:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "goal-es-browse",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者"
+    }
+  ]
+}

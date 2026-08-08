@@ -1,0 +1,63 @@
+# electron-builder configuration -- KB Desktop
+# Cross-platform packaging for the Electron host. The Python backend is
+# spawned at runtime by `src/main/server-manager.ts`; we ship the renderer +
+# main + preload bundles only and resolve Python via `KB_PYTHON` (default
+# `python3`) at runtime. This keeps the Electron artifact small and avoids
+# bundling interpreter bits per-platform.
+
+appId: io.kb.desktop
+productName: KB Desktop
+copyright: Copyright (c) 2026 KB Team
+artifactName: "${productName}-${version}-${arch}.${ext}"
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/{__tests__,test,tests}/**"
+
+asar: true
+asarUnpack:
+  - "node_modules/better-sqlite3/**"
+
+# macOS: dmg + zip (Intel + Apple Silicon).
+mac:
+  target:
+    - target: dmg
+      arch: ["x64", "arm64"]
+    - target: zip
+      arch: ["x64", "arm64"]
+  category: public.app-category.productivity
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+# Windows: NSIS installer (x64).
+win:
+  target:
+    - target: nsis
+      arch: ["x64"]
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+
+# Linux: AppImage (x64).
+linux:
+  target:
+    - target: appimage
+      arch: ["x64"]
+  category: Office
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+
+# NSIS config -- per-machine install with desktop shortcut.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: KB Desktop
+
+# Auto-update is intentionally NOT enabled in this iteration. KI follow-up.
+publish: null
