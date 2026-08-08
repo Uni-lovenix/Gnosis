@@ -110,17 +110,14 @@ function attachIpc(): void {
     importFile: async (filePath: string): Promise<ImportResponse> => {
       if (!api) throw new Error("server not ready");
       const result = await api.importFile(filePath);
-      const stat = fs.statSync(filePath);
-      db?.upsertDocument({
-        id: result.document_id,
-        source_path: filePath,
-        parser: result.parser,
-        size: result.size || stat.size,
-        imported_at: new Date().toISOString(),
-        chunks: result.chunks,
-      });
-      // poll task to completion and notify listeners
-      void pollTask(result.task_id);
+      // NOTE: do NOT upsert the document here. The initial ``ImportResponse``
+      // is a stub — the server fills in the real ``document_id``, ``parser``,
+      // and ``chunks`` once the background pipeline finishes. Writing the
+      // stub now would (a) collide on the empty ``document_id`` primary key
+      // for every import and (b) record zero-chunks / null-parser rows that
+      // never get corrected. ``pollTask`` writes the final row from
+      // ``TaskStatus.result`` once the task lands in ``done``.
+      void pollTask(result.task_id, filePath);
       return result;
     },
     search: async (query: string, opts?: { top_k?: number; datasource?: string }): Promise<Hit[]> => {
@@ -166,7 +163,7 @@ function attachIpc(): void {
   }
 }
 
-async function pollTask(taskId: string): Promise<void> {
+async function pollTask(taskId: string, filePath?: string): Promise<void> {
   if (!api) return;
   const startedAt = Date.now();
   const maxMs = 5 * 60_000;
@@ -187,7 +184,36 @@ async function pollTask(taskId: string): Promise<void> {
         created_at: new Date(startedAt).toISOString(),
         updated_at: new Date().toISOString(),
       });
-      if (t.status === "done" || t.status === "failed") return;
+      if (t.status === "done" || t.status === "failed") {
+        // Persist the final document row once the server has the real
+        // ``document_id``, ``parser``, and ``chunks``. Using the empty
+        // stub ``document_id`` from the initial import response would
+        // collide on every import (KB-Desktop-ImportHistoryMissingRow).
+        if (
+          t.status === "done" &&
+          t.result &&
+          typeof t.result.document_id === "string" &&
+          t.result.document_id &&
+          filePath
+        ) {
+          let size = 0;
+          try {
+            size = fs.statSync(filePath).size;
+          } catch {
+            // file may have been moved/deleted between import and completion;
+            // fall back to whatever the server reported, or 0 if neither has it.
+          }
+          db?.upsertDocument({
+            id: t.result.document_id,
+            source_path: filePath,
+            parser: typeof t.result.parser === "string" ? t.result.parser : null,
+            size: typeof t.result.size === "number" ? t.result.size : size,
+            imported_at: new Date().toISOString(),
+            chunks: typeof t.result.chunks === "number" ? t.result.chunks : 0,
+          });
+        }
+        return;
+      }
     } catch {
       // transient
     }

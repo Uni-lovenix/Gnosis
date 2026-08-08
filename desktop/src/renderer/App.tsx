@@ -14,7 +14,16 @@ import type { DatasourceInfo } from "../shared/types";
 type Tab = "import" | "search" | "browse" | "documents" | "settings";
 
 export function App(): JSX.Element {
-  const { state, results, serverReady, checkHealth, importFile, search, resetError } = useAppState();
+  const {
+    state,
+    results,
+    serverReady,
+    checkHealth,
+    importFile,
+    search,
+    resetError,
+    historyRefreshKey,
+  } = useAppState();
   const [tab, setTab] = useState<Tab>("search");
   const [datasources, setDatasources] = useState<DatasourceInfo[]>([]);
 
@@ -50,7 +59,14 @@ export function App(): JSX.Element {
         </div>
       )}
       <main>
-        {tab === "import" && <ImportPage state={state} onImport={importFile} />}
+        {tab === "import" && (
+          <ImportPage
+            state={state}
+            onImport={importFile}
+            historyRefreshKey={historyRefreshKey}
+            onViewAll={() => setTab("documents")}
+          />
+        )}
         {tab === "search" && <SearchPage results={results} onSearch={search} />}
         {tab === "browse" && <BrowsePage />}
         {tab === "documents" && <DocumentsPage />}
