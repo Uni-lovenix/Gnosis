@@ -10,7 +10,31 @@
   - G5 = KI-03 收敛（OpenAI 兼容远端指数退避）。`npm run verify` 120 passed（113 + 7）；`embedder.retry` 结构化日志可见。
   - G6 = 上传进度可观测性（阶段文字 + 事件日志）。`TaskStore` v1 schema（`stage` 列 + `task_events` ring buffer）；`TaskResponse.events` 嵌入最近 32 条；`npm run verify` 125 passed（113 + 12）；前端 ImportPage 新增 stage tag + 折叠事件日志；Vite 153.74 kB。
   - G7 = ES 数据浏览页（chunk-level + 文档聚合 + 过滤 + 分页）。`ElasticsearchAdapter` 加 `list_chunks` + `aggregate_by_document`；`DataSource` 基类新增可选 `list_chunks`/`aggregate_by_document`（默认抛 `NotSupportedError`，仅 ES 实现 `chunk_list` capability）；新增 `GET /v1/chunks`；前端 BrowsePage（parser 下拉 + document_id debounce 输入 + 聚合表 + 分页 + 不支持 capability 永久 banner）；`npm run verify` 136 passed（125 + 11）；Vite 158.61 kB。
-- Branch / commit: 待下一会话填写
+- Branch / commit: `main` · initial commit `54eab40` · remote `origin` = `https://github.com/Uni-lovenix/Gnosis.git`（已 push，仓库现非空）
+
+## Git Remote & Per-Version Sync Workflow
+
+**Remote**: `origin` → `https://github.com/Uni-lovenix/Gnosis.git`（默认分支 `main`，用户名 `Uni-lovenix`）
+
+每个版本开发结束 → 按下面三步同步，远端永远是已验证代码：
+
+```bash
+# 1) 确认 working tree 干净（跑过 npm run verify / smoke test）
+git status
+
+# 2) 提交——版本号 + 主题 + 验证证据
+git add -A
+git commit -m "vX.Y: <主题>  (npm run verify: N passed; eval: n/10)"
+
+# 3) 推送到远端
+git push origin main
+```
+
+规则：
+- 一个版本 = 一个 commit（或一个简短系列），禁止一次性堆多个未验证迭代。
+- commit message 必须带 **版本号 + 验证证据**（`npm run verify` 结果 / eval 命中率 / Vite 体积变化）。
+- push 之前必须先 `git pull --rebase` 以应对多端开发。
+- 任何破坏 `npm run verify` 的代码不要 push。
 
 ## Completed This Session
 

@@ -2,12 +2,18 @@
 
 ## Current State
 
-**Last Updated:** 2026-08-05T07:00:00.000Z
+**Last Updated:** 2026-08-08T00:00:00.000Z
 **Active Feature:** ES 数据浏览页（goal-es-browse / G7）
 **Current RUP Phase:** transition（已通过）
 **Current Iteration:** G1 (映射) ✅ + G2 (CRUD) ✅ + G3 (Ollama 真模型 + 默认锁定) ✅ + G4 (真实 ES 当默认数据源) ✅ + G5 (KI-03 OpenAI 兼容远端重试退避) ✅ + G6 (上传进度可观测性) ✅ + **G7 (ES 数据浏览页)** ✅
 
 ## Status
+
+### Repo & Sync
+
+- [x] 仓库已初始化：`git init -b main`；`.gitignore` 排除 `node_modules/`、`*.db`、`desktop/dist/`、`server/var/`、`.pytest_cache/`、`.env*` 等。
+- [x] 远端 `origin` = `https://github.com/Uni-lovenix/Gnosis.git`（push 完成，`HEAD = 54eab40`，初始提交 ~0.78 MB、159 文件）。
+- [x] 后续每个版本：本地通过 `npm run verify` → `git add -A` → `git commit -m "vX.Y: ..."` → `git push origin main`（详见 `session-handoff.md` §"Per-Version Sync Workflow"）。
 
 ### What's Done
 
