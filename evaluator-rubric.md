@@ -2,9 +2,12 @@
 
 ## 当前评审上下文
 
-- 当前 RUP 阶段：transition
-- 当前迭代：移交验收（T1）
+- 当前 RUP 阶段：移交后增量（transition 已通过）
+- 当前评审对象：G1-G7 goal 迭代 + H1 harness 同步 + H2 过程政策，累计状态
 - 评估者：评估者
+- 评审时间：2026-08-08T00:00:00.000Z
+- 取证方式：所有数值均为实测（`pytest` / `tsc` / `vite build` / `node --test` / 仓库 grep），非历史抄录
+- 修订记录：H1 轮补齐自 T1 悬空 7 轮的双层可观测性评分；H2 轮在过程政策确立后重评过程可观测性维度
 
 ## 评分规则
 
@@ -18,20 +21,68 @@
 
 | 维度 | 问题 | 分数 (1-5) | 备注 |
 | --- | --- | --- | --- |
-| 正确性 | 实现行为是否符合目标 + 协议？ | 5 | 全部 4 个需求（多数据源 / 文件导入 / embedding / 持久化检索）落地，端到端可跑 |
-| 验证 | 要求的检查是否真的跑过 + 留证？ | 5 | pytest 73；Vite build；tsc 0 errors；eval 9/10 |
-| 范围纪律 | 各轮是否基本保持在选定功能范围？ | 5 | 4 个 construction 严格按协议 C1-C4，未越界 |
-| 可靠性 | 重启或重跑后是否继续工作？ | 5 | SQLite 幂等；mock embedder 自动降级；子进程 watchdog |
+| 正确性 | 实现行为是否符合目标 + 协议？ | 5 | 全部 4 个需求（多数据源 / 文件导入 / embedding / 持久化检索）落地；G4 真实 ES 9.5 + G3 真实 bge-m3 端到端可跑 |
+| 验证 | 要求的检查是否真的跑过 + 留证？ | 5 | 实测 pytest **144 passed**；tsc 0 errors；Vite build 158.61 kB；eval:mock 9/10；desktop node --test 2 passed |
+| 范围纪律 | 各轮是否基本保持在选定功能范围？ | 5 | C1-C7 + G1-G7 共 14 轮，每轮单一主题，未越界 |
+| 可靠性 | 重启或重跑后是否继续工作？ | 5 | SQLite 幂等 + v1 schema 自动迁移（老库不丢数据）；mock embedder 自动降级；子进程 watchdog |
 | 可维护性 | 代码与文档是否清楚到下一会话可继续？ | 5 | 模块边界清晰；README/API/RUNBOOK/KNOWN_ISSUES 完整 |
-| 交接准备度 | 新会话只靠仓库工件能继续推进？ | 5 | session-handoff.md 给出精确 next steps 与 KNOWN_ISSUES 列表 |
-| **运行时可观测性** | 关键路径的日志 / 追踪 / 进程事件 / 健康检查是否齐备并留证，回答"系统做了什么"？ | 新增 | 新增维度，待下一轮迭代评分 |
-| **过程可观测性** | 本轮迭代的计划 / 评分标准 / 验收条件是否对齐且可追溯，回答"为什么这个变更应该被接受"？ | 新增 | 新增维度，待下一轮迭代评分 |
+| 交接准备度 | 新会话只靠仓库工件能继续推进？ | 5 | `session-handoff.md` 给出精确 next steps；H1 修复了滞后 6 轮的三份 harness 文件，H2 修复了停在 `inception` 的 `docs/PROCESS.md`，新会话读到的基线已与实测一致 |
+| **运行时可观测性** | 关键路径的日志 / 追踪 / 进程事件 / 健康检查是否齐备并留证，回答"系统做了什么"？ | **4** | 详见下方取证 |
+| **过程可观测性** | 本轮迭代的计划 / 评分标准 / 验收条件是否对齐且可追溯，回答"为什么这个变更应该被接受"？ | **4**（H1 时 3，H2 政策确立后重评） | 详见下方取证 |
+
+## 双层可观测性取证（本轮补分依据）
+
+这两个维度自 T1 起标注"新增，待下一轮迭代评分"，此后 G1-G7 七轮均未补。本轮基于仓库实测补分。
+
+### 运行时可观测性 = 4 / 5
+
+按 `CLAUDE.md` 定义的四项子能力逐条核对：
+
+| 子能力 | 状态 | 证据 |
+| --- | --- | --- |
+| 日志 | ✅ 强 | structlog JSON（timestamp/level/event/message）；19 类结构化事件在 `server/app/` 下 grep 逐个命中：`kb-server.startup`、`vector.ready`、`embedder.ready`、`embedder.fallback_to_mock`、`embedder.retry`、`datasource.from_saved`、`datasource.active_load_failed`、`datasource.config_load_failed`、`datasource.init_failed`、`datasource.default_in_memory`、`mysql.adapter.small_dataset_only`、`mysql.adapter.scan_limit_hit`、`mysql.schema.ready`、`postgres.schema.ready`、`elasticsearch.index.created`、`elasticsearch.aggregate_failed`、`pipeline.stage`、`chunks.browse_failed`、`chunks.browse_not_supported` |
+| 健康检查 | ✅ | `server/app/api/health.py` → `/v1/health`，返回 `embed_backend` 等运行时事实 |
+| 进程事件 | ✅ | desktop `server-manager.ts` 5s 心跳 + 3 次 ping 失败自动重启；`node --test scripts/test-server-manager.cjs` 2 passed（实测 30.8s，含真实重启等待） |
+| 追踪 | ❌ **缺口** | 全仓库无 `request_id` / `trace_id` / `correlation_id`；`structlog.contextvars.merge_contextvars` 在 `app/observability/logging.py:24` 已挂进 processors，但**没有任何代码调用 `bind_contextvars`**，等于装了管道没通水。唯一的跨阶段关联键是 `task_id`，且只覆盖 import 路径（`models.py` / `task_store.py` / `api/files.py`），search / browse / datasource 路径无关联 ID |
+
+**不给 5 分的理由**：追踪是 `CLAUDE.md` 自己列出的四项之一，目前为零。
+**不给 3 分的理由**：单用户本地应用，日志密度已足以定位问题；G6 的 `TaskStage` 7 态 + `TaskEvent` ring buffer 32 + `/v1/files/tasks/{id}/events?since_id=` 实际上为最长的那条链路（import）提供了等价的阶段级追踪能力。缺口属非阻塞打磨。
+
+### 过程可观测性 = 4 / 5（H1 评 3，H2 政策确立后重评）
+
+**H1 时评 3 分的两条依据**：`docs/construction/` 有 c1-c7 评估报告 7 份但 **G1-G7 零评估报告**；迭代协议只有 c1-c7 + g5/g6/g7 共 10 份，**G1-G4 四轮缺失**。当时判定"这不是打磨项，是流程环节缺失"。
+
+**H2 的处理**：根因不是"忘了写"，而是 `docs/PROCESS.md` **从未规定过 goal 系列要不要写**——它只说"每个迭代开始前必须制定迭代协议"，对评估报告的适用范围只字未提，且自身停在 `当前阶段：inception`。H2 确立明文政策而非回溯补文档（用户决策）。
+
+| 子能力 | H1 状态 | H2 后状态 | 证据 |
+| --- | --- | --- | --- |
+| 验收条件 | ✅ | ✅ | `feature_list.json` 21/21 条目 `evidence` 均非空（H2 修复了 5 处因重复键而失效的 evidence，见下方偏差表）；`progress.md` 每轮留可复核数值 |
+| 计划（迭代协议） | ⚠️ G1-G4 缺失 | ✅ 规则明确 | `docs/PROCESS.md` §迭代分类：三类迭代**均必须**有协议；G1-G4 显式追认、不回溯；H2 自身已产出协议 |
+| 评分标准（评估报告） | ❌ G1-G7 全缺 | ✅ 规则明确 | C 类必须、G/H 类免除并写明论据；四条**客观可判定**的升级触发条件（破坏性接口变更 / schema 迁移 / 新增数据源或 embedder 后端 / 安全边界） |
+| 评分表自身时效 | ❌ 滞后 6 轮 | ✅ 已修复 + 立规 | H1 同步到 G7；H2 立"连续两轮未同步即判不合格""新增维度不得长期挂待评分"两条约定 |
+| 记录口径 | ❌ 136 vs 144 漂移 | ✅ 已固化 | `docs/PROCESS.md` §记录口径约定：测试数以 `npm run test:unit` 为准（带 Milvus Lite URI）；包体积带前值与差值 |
+
+**给 4 分而非 5 分的理由**（两条，均为事实而非保守）：
+
+1. **政策尚未被实践检验**。H2 确立的"自验四项最低要求"和四条升级触发条件，至今没有任何一轮 G 类迭代在其约束下跑过。规则写得清楚 ≠ 规则可执行——下一轮 G 类迭代收尾时才能验证它是否真的可判定。
+2. **G1-G4 协议与 G1-G7 评估报告仍然不存在**。追认是一个**有记录、有论据的主动选择**（不是遗漏），但工件本身确实缺失；若日后需要回溯审计 G2 的数据源 CRUD 为何那样设计，只能读 `progress.md` 的自述，没有第二方视角。
+
+**不再判 3 分的理由**：3 分的定义是"需要计划内修订并复审"。修订已完成——规则缺位这个根因已被消除，且消除方式经过论证（免除项写明了为什么 G 类的可执行断言比追述性报告更难造假）、边界清晰（四条升级条件把高风险改动挡在自验之外）、不留隐性欠账（G6 命中升级条件这一事实已留档为判例）。
+
+## 本轮实测与既有记录的偏差
+
+| 项 | 记录值 | 实测值 | 判定 |
+| --- | --- | --- | --- |
+| pytest | 136 passed（G7 记录） | **144 passed** | 记录偏低 8。差值恰等于 `tests/datasources/test_milvus_adapter.py` 的 8 项——记录时该文件应处于 skip 状态（conftest 在 Milvus 不可达时 skip），本轮 Lite 路径全跑。非回归，已在 `progress.md` / `session-handoff.md` 注明，并在 H2 固化为记录口径约定 |
+| `docs/PROCESS.md` 阶段状态 | `当前阶段：inception`；细化/构建/移交均 `待进入` | 实际已全部通过，且在增量段 | H1 未覆盖到该文件（只查了 4 份根级 harness 文件），H2 修正。这是本次整理中**滞后最严重**的一份 |
+| `feature_list.json` 的 5 处 evidence | 原始文件中 `feat-construction-1`…`-4` 与 `feat-transition-handoff` 各有**两个 `evidence` 键**：真实内容在前、空字符串在后 | 按 JSON 语义后者覆盖前者，这 5 项的 evidence 对**任何标准解析器**都是空 | **H2 新发现的潜在缺陷**。此前所有"evidence 齐备"的判断都是基于肉眼看原始文本，而工具链读到的是空值——过程可观测性的证据链在这 5 项上实际是断的。H2 已去重并保留真实内容，21/21 条目 evidence 均非空且可被解析器读到 |
+| 其余（tsc / build / eval / 19 类日志事件） | — | 全部对上 | 无偏差 |
 
 ## 总体评分
 
-**Overall: 5 / 5（在已评维度上）**
+**Overall: 4.75 / 5**（8 个维度：5,5,5,5,5,5,4,4 = 38/40）
 
-注：可观测性两维度为新增项，本轮暂未评分，作为下一轮迭代必评项。
+功能与验证维度满分且实测可复现；两处扣分（运行时缺追踪、过程政策待实践检验）均已定位到具体缺口并写入 `progress.md` What's Next，非泛泛而论。
 
 ## Harness 文件评估
 
@@ -41,14 +92,15 @@
 | `agents.json` | 是 | 5 | schema v3 |
 | `AGENTS.md` | 是 | 5 | 规则入口 |
 | `CLAUDE.md` | 是 | 5 | 规则入口 |
-| `feature_list.json` | 是 | 5 | 7/7 = pass |
-| `progress.md` | 是 | 5 | 当前 RUP 状态与下一步 |
-| `session-handoff.md` | 是 | 5 | 完整交接 |
-| `quality-document.md` | 是 | 5 | A 级 |
-| `evaluator-rubric.md` | 是 | 5 | 本表 |
-| `clean-state-checklist.md` | 是 | 5 | 全部项具备 |
+| `feature_list.json` | 是 | 5 | **21/21** = pass（H2 新增 `feat-harness-sync` + `feat-process-policy`，并修复 5 处重复 `evidence` 键） |
+| `progress.md` | 是 | 5 | 当前 RUP 状态与下一步；H1 修正 136→144，H2 记录政策决议 |
+| `session-handoff.md` | 是 | 5 | 完整交接；H1 修正 136→144，H2 更新 Recommended Next Step |
+| `quality-document.md` | 是 | 5 | H1 从 G1 基线同步到 G7 实测；H2 重评过程维度 |
+| `evaluator-rubric.md` | 是 | 5 | 本表；H1 补齐双层可观测性评分，H2 政策确立后重评过程维度 3 → 4 |
+| `clean-state-checklist.md` | 是 | 5 | H1 同步到 G7 实测并暴露 2 项欠账；H2 后两项已由政策解除 |
 | `init.sh` | 是 | 5 | 通过 |
-| `docs/PROCESS.md` | 是 | 5 | RUP 流程 |
+| `docs/PROCESS.md` | 是 | 5 | **H2 重写**：新增迭代分类与评估策略 + 记录口径约定；修正此前停在 `inception` 的陈旧状态 |
+| `docs/construction/h2-process-policy.md` | 是 | 5 | H2 迭代协议，含 H1 协议补记 |
 | `agents/<角色文件>` | 是（7） | 5 | 每角色一文件 |
 
 ## 结论
@@ -57,12 +109,19 @@
 - [ ] Revise
 - [ ] Block
 
+H1 提出的 Revise 项（过程工件欠账）已由 H2 以确立明文政策的方式关闭：规则缺位这一根因已消除，G1-G7 显式追认并留档判例。剩余两处 4 分项（运行时缺追踪、政策待实践检验）均为非阻塞改进项，已写入 `progress.md` What's Next。
+
 ## Summary
 
-启动、细化、构建（×4）、移交四个 RUP 阶段全部通过评估；移交文档齐备；下一会话可仅依赖仓库工件继续推进。
+inception / elaboration / construction(×4) / transition 四阶段 + C5-C8 补充收敛 + G1-G7 goal 迭代 + H1/H2 harness 迭代全部闭环。实测 144 passed ×2 / tsc 0 errors / Vite 158.61 kB / eval:mock 9/10 / desktop node --test 2 passed，`feature_list.json` 21/21 pass。
+
+H1 补齐了自 T1 悬空 7 轮的双层可观测性评分（运行时 4/5 缺追踪、过程 3/5 缺 G 系列评估工件），并同步三份滞后 6 轮的 harness 文件。H2 确立迭代分类与评估策略，把"哪类迭代需要独立评估报告"从隐性惯例变成明文规则，过程可观测性重评为 4/5；同时修正了本次整理中滞后最严重的 `docs/PROCESS.md`（停在 `当前阶段：inception`），并修复了 `feature_list.json` 中 5 处重复 `evidence` 键导致证据对解析器不可见的潜在缺陷。总分 4.5 → **4.75/5**。
 
 ## 后续动作
 
-- 缺失证据：KI-04 Documents API 与 KI-05 electron-builder 打包（迁移到下一 RUP 周期）。
-- 必须补的修复：无。
-- 下次复审触发条件：下一 RUP 周期的 inception 评估。
+- 缺失证据：无（偏差项已全部核实并注明）。
+- 必须补的修复：无阻塞项。
+- 已关闭（H2）：~~为 G1-G7 补评估报告或明确政策~~ → 已在 `docs/PROCESS.md` §迭代分类与评估策略 显式选定"G/H 类走自验"并写明论据；~~约定评分表每轮同步~~ → 已立"连续两轮未同步即判不合格"。
+- 待验证（下一轮 G 类迭代收尾时）：H2 的"自验四项最低要求"与四条升级触发条件是否真的可判定。这是过程可观测性从 4 升 5 的唯一前置条件。
+- 建议补的运行时能力（对应运行时可观测性 4 分）：引入 `request_id` 并 `bind_contextvars`，让已挂载的 `merge_contextvars` 真正生效，把 search / browse 路径也纳入关联。
+- 下次复审触发条件：下一个功能迭代收尾时（届时同步验证 H2 政策的可执行性）。

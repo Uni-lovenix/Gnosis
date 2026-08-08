@@ -3,9 +3,24 @@
 ## Current State
 
 **Last Updated:** 2026-08-08T00:00:00.000Z
-**Active Feature:** ES 数据浏览页（goal-es-browse / G7）
-**Current RUP Phase:** transition（已通过）
-**Current Iteration:** G1 (映射) ✅ + G2 (CRUD) ✅ + G3 (Ollama 真模型 + 默认锁定) ✅ + G4 (真实 ES 当默认数据源) ✅ + G5 (KI-03 OpenAI 兼容远端重试退避) ✅ + G6 (上传进度可观测性) ✅ + **G7 (ES 数据浏览页)** ✅
+**Active Feature:** 无（H2 已收尾；本轮为过程政策确立，未改动生产代码）
+**Current RUP Phase:** 移交后增量（transition 已通过）
+**Current Iteration:** G1-G7 全 ✅ + **H1 (harness 文档同步) ✅ + H2 (过程政策确立) ✅**
+
+## 实测基线（2026-08-08 复核）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `npm run test:unit` | 144 passed in 5.21s |
+| `npm run test:integration` | 144 passed in 4.68s |
+| `npm run check` / `lint` | 0 errors |
+| `npm run build` | Vite 158.61 kB JS + 7.00 kB CSS / 38 模块 / 685ms |
+| `npm run eval:mock` | 9/10 (90%) |
+| `node --test scripts/test-server-manager.cjs` | 2 passed in 30.8s |
+| `feature_list.json` | 21/21 pass（evidence 全部非空） |
+| git | `main`，HEAD `72d8a2a`，改动仅文档文件 |
 
 ## Status
 
@@ -71,31 +86,65 @@
   - 测试：`server/tests/datasources/test_elasticsearch_adapter.py` 扩 5 项（list_chunks 分页 + sort + 文本截断 + 过滤；aggregate_by_document 分组；ES 异常降级为空 dict；capabilities 包含 chunk_list）；`server/tests/api/test_chunks_api.py`（新）7 项（200 完整响应 / 过滤参数透传 / 400 或 422 limit 非法 / 400 或 422 负 offset / 501 capability 缺失 / 503 active 未绑定 / aggregate 抛 NotSupportedError 转 501）。`pytest tests/` 125 → **136 passed**（+11 G7 new）。
   - 文档：`docs/API.md` §浏览 新增 `GET /v1/chunks` 段；`docs/RUNBOOK.md` §4b ES 数据浏览 + §3 capability 列表增 `chunk_list`；`docs/goal/01-mapping.md` G7 行 + "已完成" 段；`docs/construction/g7-es-browse.md` 协议；`progress.md` / `session-handoff.md` G7 记录；`feature_list.json` 18 → **19 pass**。
   - 验证：`npm run verify` test:unit 125 → 136 / test:integration 125 → 136 全绿；`npm run check` 0 errors；`npm run lint` 0 errors；`npm run build` Vite 153.74 → **158.61 kB**（+4.87 kB）；ES 端到端：ES 9.5.0 跑 + G4 留下的 8 chunks → browse tab 看到 chunks + 聚合行 + 过滤 + 分页均正确。
+  - **[2026-08-08 复核修正]** 上面记录的 136 passed 为 Milvus 适配器 skip 状态下的计数。以 `KB_MILVUS_URI=./kb_milvus_lite.db` 全量跑（即根级 `npm run test:unit` 的实际命令）实测为 **144 passed**，差值 8 恰为 `tests/datasources/test_milvus_adapter.py` 的 8 项。非回归，仅为记录口径不一致。以后记录测试数请统一走 `npm run test:unit`。
+- [x] **H1 harness 文档同步 + 双层可观测性补分**（纯文档轮，零生产代码改动）：
+  - 背景：`quality-document.md` / `clean-state-checklist.md` 停在 G1 基线（13/13、89 passed、148.70 kB），`evaluator-rubric.md` 停在 T1 上下文（7/7、pytest 73），已滞后 6 轮；`feature_list.json` 的 `last_updated` 落后 progress.md 4 天。新会话会读到失真基线。
+  - `quality-document.md`：9 维扩到 11 维（新增运行时/过程可观测性两行）；全部数值换成实测；Overall A → **A-**（两个 B 均指向 goal 系列过程工件欠账）；Observability 段列出 19 类实测命中的日志事件。
+  - `clean-state-checklist.md`：快照 G1 → G7；Build/Performance/Repository 各项换实测值；`.gitignore` 相关项从"推荐"改为"已实际生效"（核对 `.gitignore` 属实）；新增 2 项**未勾选**项暴露欠账（G1-G4 无协议文档、G1-G7 无评估报告）。
+  - `evaluator-rubric.md`：上下文 T1 → G7 累计；补齐自 T1 悬空 7 轮的双层可观测性评分 —— **运行时 4/5**（日志/健康检查/进程事件齐备，但追踪为零：全仓库无 request_id/trace_id，`structlog.contextvars.merge_contextvars` 已挂 processors 却无任何 `bind_contextvars` 调用，唯一关联键 `task_id` 只覆盖 import 路径）、**过程 3/5**（14 轮迭代有 7 轮无评估工件，评分表自身滞后 6 轮）；总分 4.5/5；结论 Accept（功能）+ Revise（过程工件）。
+  - `feature_list.json`：`last_updated` → 2026-08-08（19/19 pass 不变，JSON 校验通过）。
+  - 验证：实测 `npm run test:unit` 144 passed / `test:integration` 144 passed / `tsc --noEmit` 0 errors / Vite 158.61 kB / `eval:mock` 9/10 / `node --test` 2 passed；19 类日志事件逐个 grep 命中；`git status --porcelain` 仅含本轮 6 个文档文件。
+- [x] **H2 过程政策确立**（纯文档轮，零生产代码改动）：
+  - 背景：H1 把过程可观测性评为 3/5，依据是 G1-G7 零评估报告 + G1-G4 无迭代协议。根因不是"忘了写"，而是 `docs/PROCESS.md` **从未规定过 goal 系列要不要写**——它只说"每个迭代开始前必须制定迭代协议"，对评估报告的适用范围只字未提；且该文件自身停在 `当前阶段：inception`，是本次整理中滞后最严重的一份。
+  - `docs/PROCESS.md` 新增 **§迭代分类与评估策略**：按 C（构建）/ G（目标）/ H（harness）三类定义——三类**均必须**有迭代协议；C 类**必须**出独立评估报告；G/H 类走自验，并写明论据（G 类退出标准本身即可执行断言：测试通过数 / 类型错误数 / 包体积 / 评测命中率 / 端到端返回值，任何后续会话可重跑复现，比追述性报告更难造假；且 G 类不引入新设计决策，只在已验收架构里填空）。
+  - 四条**客观可判定**的升级触发条件（命中任一即不得走自验）：破坏性接口变更 / 持久化 schema 迁移 / 新增数据源类型或 embedder 后端 / 触及安全边界。理由：这四类改动的代价转嫁给未来会话或用户数据，自动化断言证明不了"迁移路径对老数据安全"。
+  - 自验四项最低要求（缺一不得标 `pass`）：协议先于开发落盘、`progress.md` 留可复核数值、`feature_list.json` evidence 非空、双层可观测性逐条过。
+  - G1-G7 **显式追认**为自验通过、政策自 H2 起生效不回溯；**留档判例**：G6 同时命中"破坏性接口变更"（`on_progress` 签名）与"持久化 schema 迁移"（`TaskStore` v1 + `PRAGMA user_version=1`），按新政策本应出独立评估报告。
+  - `docs/PROCESS.md` 新增 **§记录口径约定**：测试数一律以 `npm run test:unit` 为准；包体积带前值与差值；`evaluator-rubric.md` 每轮收尾同步（连续两轮未同步即判过程可观测性不合格）；新增维度不得长期挂"待评分"。
+  - `docs/PROCESS.md` 陈旧状态修正：阶段表四行 `待进入` → `已通过` + 新增「移交后增量」行；当前阶段 `inception` → 移交后增量；迭代列表 7 行 → 21 行，补全 C5-C8 / G1-G7 / H1-H2 并新增「类别」「状态」两列。
+  - `docs/construction/h2-process-policy.md`（新）：H2 迭代协议，含反面案例段 + **附 H1 迭代协议补记**（H1 执行于政策确立前，当时未产出协议，按新规则补记，使 harness 段自身首尾一致）。
+  - **意外发现并修复**：`feature_list.json` 中 `feat-construction-1`…`-4` 与 `feat-transition-handoff` 共 5 个条目各有**两个 `evidence` 键**——真实内容在前、空字符串在后。按 JSON 语义后者覆盖前者，这 5 项的 evidence 对**任何标准解析器**都是空值，证据链实际是断的（此前"evidence 齐备"的判断都基于肉眼看原始文本）。已去重并保留真实内容，21/21 条目 evidence 均非空且可被解析器读到。
+  - 重评：`evaluator-rubric.md` 过程可观测性 3 → **4**（不给 5 的两条理由：政策尚未被任何 G 类迭代实践检验；G1-G4 协议与 G1-G7 评估报告仍不存在，追认是有记录的主动选择但工件确实缺失）；交接准备度 4 → 5；总分 4.5 → **4.75/5**；结论 Revise → **Accept**。`quality-document.md` 两个 B 回升，Overall A- → **A**。
+  - 验证：`npm run verify` 144 passed ×2；`bash init.sh` 全绿；`feature_list.json` 与原始版本逐字段比对——原 19 项内容完全一致，仅新增 H1/H2 两项。
 
 ### What's In Progress
 
-- 无。G7 已收尾。所有 KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 均收敛；仅 KI-01 / KI-08 / KI-10 仍 open（低-中严重度、不阻塞个人生产使用）。
+- 无。G7 / H1 / H2 均已收尾。所有 KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 均收敛；仅 KI-01 / KI-08 / KI-10 仍 open（低-中严重度、不阻塞个人生产使用）。
 
 ### What's Next
 
-1. 推荐下一迭代：KI-01（PDF OCR）或 KI-08（Word 图片 / 批注）或 KI-10（better-sqlite3 arm64 cross-compile）。已不再是阻塞项，按用户实际遭遇频率决定先后。
-2. CI 引入 docker compose 服务化 Milvus，让 conftest 默认 URI 指向 `http://milvus:19530`，1:1 套件 CI 自动跑。
-3. （若数据增长触发 `scan_limit_hit` 高频告警）C9 单独开迭代做数据迁移工具（dump / load CLI），突破 C8 收敛边界。
-4. （可选）`active` 切换运行时热生效：当前只影响下次启动；要做需引入 datasource 池 + 信号量，避免正在跑的 import 半途切换。
-5. （推荐新增）把 Settings → "Test connection" 成功后自动调 `mark_tested` 写 `last_tested_at`，UI 上加 ✓ 标记；目前该事件仅 main 进程直接调才生效。
-6. （可选，G5 后续）将指数退避提炼成 `app/utils/backoff.py` 通用工具，给 datasource 慢路径也复用；目前仅 openai-compat 用，先验证价值再抽象。
+**过程欠账 —— H2 后仅剩一项待验证**
+
+1. 下一轮 G 类迭代收尾时，验证 H2 政策的"自验四项最低要求"与四条升级触发条件是否**真的可判定**。这是过程可观测性从 4 升 5 的唯一前置条件。规则写得清楚 ≠ 规则可执行。
+
+**功能候选**
+
+2. （成本最低、闭环最完整）Settings → "Test connection" 成功后自动调 `mark_tested` 写 `last_tested_at`，UI 加 ✓ 标记。**H1 已核实：`datasource_store.py:188` 有实现 + `test_datasource_store.py:111` 有单测，但全仓库无任何 API/UI 调用方 —— 属有测试无调用方的死代码。**
+3. （对应运行时可观测性 4/5 的缺口）引入 `request_id` 并 `bind_contextvars`，让已挂载的 `merge_contextvars` 真正生效，把 search / browse 路径也纳入关联。目前唯一的跨阶段关联键是 `task_id`，且只覆盖 import 路径。
+4. KI-01（PDF OCR）或 KI-08（Word 图片 / 批注）或 KI-10（better-sqlite3 arm64 cross-compile）。已不再是阻塞项，按用户实际遭遇频率决定先后。
+5. CI 引入 docker compose 服务化 Milvus，让 conftest 默认 URI 指向 `http://milvus:19530`，1:1 套件 CI 自动跑。
+6. （可选，G5 后续）将指数退避提炼成 `app/utils/backoff.py` 通用工具。**H1 已核实该文件不存在**，目前仅 `openai_compat.py` 内联。
+
+> 注：上述第 2/3 项若实施，需先按 `docs/PROCESS.md` §升级触发条件自查——第 3 项不改契约走自验；第 2 项若改动 IPC 协议则需升级为独立评估。
+
+**条件触发**
+
+7. （若数据增长触发 `scan_limit_hit` 高频告警）C9 单独开迭代做数据迁移工具（dump / load CLI），突破 C8 收敛边界。
+8. （可选）`active` 切换运行时热生效：当前只影响下次启动；要做需引入 datasource 池 + 信号量，避免正在跑的 import 半途切换。
 
 ## Blockers / Risks
 
 - 详见 `docs/KNOWN_ISSUES.md`（KI-01 / KI-08 / KI-10 仍 open；KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 已收敛）。
-- KI-06 真实 BGE-M3 模型评测：本机未执行（缺 sentence-transformers + 权重）；mock 路径 9/10 维持门禁。
+- KI-06 已由 G3 收敛：真实 bge-m3 经 Ollama OpenAI 兼容接口跑通，`eval:ollama` 10/10。CI 仍走 mock 路径（9/10）维持门禁，本地 sentence-transformers 直载路径仍未装权重（属备用路径，不阻塞）。
 - C7 / KI-07：本机 docker mirror 对 `milvusdb/milvus:v2.4.10-standalone` 返回 403；Milvus Lite (`./kb_milvus_lite.db`) 1:1 兜底。
 - G1：goal.md 假设的 `src/backend` `src/frontend` 目录在本仓库不存在；功能 100% 已覆盖，详见 `docs/goal/01-mapping.md`。
 - G2：active 切换只影响下次 server 启动（设计如此）；用户改 active 后需要重启桌面端才生效（避免正在跑的 pipeline 半途切换）。这一边界在 RUNBOOK §2 与 SettingsPage 帮助文本里都写明了。
 
 ## Decisions Made
 
-- RUP 四阶段 + 迭代协议管理；5 个 construction 迭代 + 1 个 transition + 3 个补充收敛迭代（C6 / C7 / C8）+ 7 个 goal 迭代（G1 映射 / G2 数据源 CRUD / G3 Ollama bge-m3 / G4 真实 ES / G5 KI-03 重试退避 / G6 上传进度可观测性 / **G7 ES 数据浏览页**）。
+- RUP 四阶段 + 迭代协议管理；5 个 construction 迭代 + 1 个 transition + 3 个补充收敛迭代（C6 / C7 / C8）+ 7 个 goal 迭代（G1 映射 / G2 数据源 CRUD / G3 Ollama bge-m3 / G4 真实 ES / G5 KI-03 重试退避 / G6 上传进度可观测性 / G7 ES 数据浏览页）+ 2 个 harness 迭代（H1 文档同步 / **H2 过程政策确立**）。
+- **H2 迭代分类政策**：C 类必须出独立评估报告；G/H 类走自验但必须有迭代协议 + 四项最低要求；四条客观可判定的升级触发条件把高风险改动挡在自验之外。选"定政策"而非"回溯补 7 份评估报告"是用户决策——理由是回溯写作的信息全部来自 `progress.md`，边际价值低于确立规则。
+- **H2 记录口径**：测试数一律以根级 `npm run test:unit` 为准（带 `KB_MILVUS_URI=./kb_milvus_lite.db`，Milvus 8 项会全跑）。此前 G7 记的 136 是 Milvus skip 口径，导致口径漂移。
 - Python 服务默认走 mock embedder；缺 sentence-transformers 自动降级（事件 `embedder.fallback_to_mock`）。
 - 数据源抽象最小能力集：add / search / delete / health；特性能力按适配器扩展。
 - 桌面端架构：主进程拉起 Python 子进程 + watchdog；preload 唯一 IPC 暴露点。
@@ -113,8 +162,8 @@
 
 ## Notes for Next Session
 
-- 当前仓库 `feature_list.json` 全部 `pass`（19/19，G7 新增）。
-- 下次启动：`bash init.sh` → 阅读 README → PROCESS → KNOWN_ISSUES → `docs/goal/01-mapping.md` → RUNBOOK §2 数据源配置管理。
+- 当前仓库 `feature_list.json` 全部 `pass`（**21/21**，H1 + H2 新增），且 evidence 字段全部非空。
+- 下次启动：`bash init.sh` → 阅读 README → **PROCESS §迭代分类与评估策略**（开新迭代前必读，决定要不要出评估报告）→ KNOWN_ISSUES → `docs/goal/01-mapping.md` → RUNBOOK §2 数据源配置管理。
 - 任何接口变更必须同步 `docs/elaboration/01-architecture-baseline.md` 与 `docs/API.md`。
 - `feature_list.json` 描述统一使用中文弯引号 “…”；新增条目沿用。
 - 根级 `npm scripts` 是聚合入口，desktop 与 server 仍按各自路径运行。

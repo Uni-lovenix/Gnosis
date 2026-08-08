@@ -1,7 +1,7 @@
 {
   "project": "灵知 (Gnosis)",
   "description": "1. 支持多数据源配置（最少支持elasticsearch，postgresql，mysql，向量数据库）\n2. 支持文件导入功能，包括：excel，word，pdf，markdown等\n3. 要能向量化数据，支持embedding模型，模型使用bge-m3\n4. 数据向量化后存入存入数据库",
-  "last_updated": "2026-08-04T14:35:00.000Z",
+  "last_updated": "2026-08-08T00:00:00.000Z",
   "status_legend": {
     "not_started": "功能还没开始做。",
     "in_progress": "这个功能是当前唯一正在进行的任务。",
@@ -25,7 +25,9 @@
       "id": "feat-inception-scope",
       "name": "启动范围确认",
       "description": "规划者完成启动阶段：确认项目边界、核心目标、约束和初始风险，形成初始迭代计划。",
-      "dependencies": ["harness-bootstrap"],
+      "dependencies": [
+        "harness-bootstrap"
+      ],
       "status": "pass",
       "evidence": "docs/inception/01-project-scope.md（范围与目标）、docs/inception/02-initial-risks.md（初始风险与依赖）、docs/inception/03-initial-iteration-plan.md（迭代编排）已生成；init.sh 校验通过。",
       "testedAt": "2026-08-03T16:00:00.000Z",
@@ -37,7 +39,9 @@
       "id": "feat-elaboration-architecture",
       "name": "架构与风险细化",
       "description": "规划者完成细化阶段：确定技术基线、细化风险与依赖、形成构建迭代协议。",
-      "dependencies": ["feat-inception-scope"],
+      "dependencies": [
+        "feat-inception-scope"
+      ],
       "status": "pass",
       "evidence": "docs/elaboration/01-architecture-baseline.md（模块边界、数据流、接口契约、技术选型、目录结构）、02-risk-update.md（含新增风险 R11-R15 与依赖排序）、03-iteration-protocols.md（C1-C4 + T1 协议）已生成。",
       "rupPhase": "elaboration",
@@ -54,7 +58,6 @@
       "status": "pass",
       "evidence": "docs/construction/c1-data-sources.md（模块清单、能力矩阵、验证证据）；docs/construction/c1-evaluation.md（评估 5/5 通过）；server/app/datasources/{base,elasticsearch_adapter,postgres_adapter,mysql_adapter,vector_db_adapter,factory,registry}.py；server/app/api/{datasources,health}.py；server/app/main.py；server/tests/datasources 31 项单测通过；TestClient 端到端验证 4 个端点。",
       "testedAt": "2026-08-04T00:05:00.000Z",
-      "evidence": "",
       "rupPhase": "construction",
       "iteration": "construction-1",
       "ownerRole": "数据与报表开发者"
@@ -69,7 +72,6 @@
       "status": "pass",
       "evidence": "docs/construction/c2-files-and-sync.md（模块清单、设计要点、验证证据）；docs/construction/c2-evaluation.md（评估 5/5）；server/app/parsers/{excel,word,pdf,markdown,_common}.py；server/app/chunking/text_chunker.py；server/app/observability/task_store.py；server/app/api/files.py；pytest 57 passed 含 4 类解析器+切片器+任务存储+files API。",
       "testedAt": "2026-08-04T00:30:00.000Z",
-      "evidence": "",
       "rupPhase": "construction",
       "iteration": "construction-2",
       "ownerRole": "文件与同步开发者"
@@ -84,7 +86,6 @@
       "status": "pass",
       "evidence": "docs/construction/c3-ai-embedding.md（模块清单、流水线图、评测结果）；docs/construction/c3-evaluation.md（评估 5/5）；server/app/embedding/{base,bge_m3,openai_compat,mock_embedder,factory}.py；server/app/pipeline/{indexing,retrieval}.py；server/app/api/search.py；server/eval/{fixtures/cases.json,corpus/snippets.md,run_eval.py,README.md}；pytest 73 passed；eval 命中率 9/10 (90%) ≥ 60% 门禁。",
       "testedAt": "2026-08-04T00:50:00.000Z",
-      "evidence": "",
       "rupPhase": "construction",
       "iteration": "construction-3",
       "ownerRole": "AI 与智能体开发者"
@@ -99,7 +100,6 @@
       "status": "pass",
       "evidence": "docs/construction/c4-multi-experience.md（模块清单、架构边界、状态机、验证证据、手工 e2e）；docs/construction/c4-evaluation.md（评估 5/5）；desktop/ 下 3 个 tsconfig + Vite 全部类型检查 0 错误；Vite build 产物 147.73 kB；server-manager Node test 2/2 通过；桌面端 IPC 通道仅在 preload 暴露。",
       "testedAt": "2026-08-04T01:10:00.000Z",
-      "evidence": "",
       "rupPhase": "construction",
       "iteration": "construction-4",
       "ownerRole": "多端体验开发者"
@@ -114,7 +114,6 @@
       "status": "pass",
       "evidence": "顶层 README.md、docs/API.md、docs/RUNBOOK.md、docs/KNOWN_ISSUES.md、docs/transition/README.md、session-handoff.md（已更新为全 pass）。bash init.sh 通过；server pytest 73 passed；desktop 3 tsconfig 0 errors + Vite build 成功；server eval 9/10 (90%) ≥ 60% 门槛。",
       "testedAt": "2026-08-04T01:20:00.000Z",
-      "evidence": "",
       "rupPhase": "transition",
       "iteration": "transition-1",
       "ownerRole": "文档与交接负责人"
@@ -273,6 +272,34 @@
       "rupPhase": "transition",
       "iteration": "goal-es-browse",
       "ownerRole": "数据与报表开发者 / 多端体验开发者"
+    },
+    {
+      "id": "feat-harness-sync",
+      "name": "Harness 文档同步 + 双层可观测性补分（H1）",
+      "description": "把滞后 6 轮的 harness 文件同步到实测基线，并补齐自 T1 起悬空 7 轮的“运行时可观测性”“过程可观测性”两个评分维度。纯文档轮，零生产代码改动。",
+      "dependencies": [
+        "feat-goal-es-browse"
+      ],
+      "status": "pass",
+      "evidence": "quality-document.md 评分表 9 维扩到 11 维（新增运行时/过程可观测性两行），全部数值换成实测，Overall A → A-；clean-state-checklist.md 快照 G1 → G7，Build/Performance/Repository 各项换实测值，.gitignore 相关项从“推荐”改为“已实际生效”（核对 .gitignore 属实），新增 2 项未勾选项暴露欠账（G1-G4 无协议文档、G1-G7 无评估报告）；evaluator-rubric.md 上下文 T1 → G7 累计，补齐双层可观测性评分——运行时 4/5（日志/健康检查/进程事件齐备，但追踪为零：grep request_id/trace_id/correlation_id/bind_contextvars 全仓库 0 命中，structlog.contextvars.merge_contextvars 已挂 processors 却无任何 bind 调用，唯一关联键 task_id 只覆盖 import 路径）、过程 3/5（14 轮迭代 7 轮无评估工件，评分表自身滞后 6 轮），总分 4.5/5；feature_list.json last_updated → 2026-08-08；progress.md 新增实测基线表 + H1 条目 + What's Next 重排为过程/功能/条件触发三类；session-handoff.md 同步。实测取证：npm run test:unit 144 passed in 5.21s（此前记录 136 为 Milvus skip 口径，差值 8 = test_milvus_adapter.py 的 8 项，非回归）；npm run test:integration 144 passed in 4.68s；tsc --noEmit 0 errors；npm run build Vite 158.61 kB JS + 7.00 kB CSS / 38 模块 / 685ms；npm run eval:mock 9/10；node --test scripts/test-server-manager.cjs 2 passed in 30.8s；19 类结构化日志事件逐个 grep 命中 server/app/；mark_tested 确认为有实现（datasource_store.py:188）有单测（test_datasource_store.py:111）无调用方的死代码；app/utils/backoff.py 确认不存在。bash init.sh 全绿。",
+      "testedAt": "2026-08-08T00:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "harness-sync",
+      "ownerRole": "文档与交接负责人"
+    },
+    {
+      "id": "feat-process-policy",
+      "name": "过程政策确立：迭代分类与评估策略（H2）",
+      "description": "把“哪些迭代需要独立评估报告”从隐性惯例变成 docs/PROCESS.md 中的明文规则，关闭 H1 评审提出的过程可观测性 3/5 Revise 项。同时修正 PROCESS.md 自身停在 inception 的陈旧状态，并固化 H1 发现的记录口径漂移。纯文档轮，零生产代码改动。",
+      "dependencies": [
+        "feat-harness-sync"
+      ],
+      "status": "pass",
+      "evidence": "docs/PROCESS.md 新增 §迭代分类与评估策略：按 C（构建）/ G（目标）/ H（harness）三类定义迭代协议与独立评估报告的适用性——三类均必须有迭代协议，C 类必须出独立评估报告，G/H 类走自验并写明论据（G 类退出标准本身是可执行断言：测试通过数/类型错误数/包体积/评测命中率/端到端返回值，任何后续会话可重跑复现，比追述性报告更难造假；且 G 类不引入新设计决策，只在已验收架构里填空）；给出四条客观可判定的升级触发条件（破坏性接口变更 / 持久化 schema 迁移 / 新增数据源类型或 embedder 后端 / 触及安全边界），命中任一即不得走自验；定义自验四项最低要求（协议先行落盘、progress.md 留可复核数值、feature_list evidence 非空、双层可观测性逐条过），缺一不得标 pass；显式追认 G1-G7 为自验通过、政策自 H2 起生效不回溯，并留档判例——G6 同时命中“破坏性接口变更”（IndexingPipeline.on_progress 签名变更）与“持久化 schema 迁移”（TaskStore v1 + PRAGMA user_version=1），按新政策本应出独立评估报告。docs/PROCESS.md 新增 §记录口径约定：测试数一律以 npm run test:unit 为准（带 KB_MILVUS_URI=./kb_milvus_lite.db，Milvus 8 项全跑）、包体积带前值与差值、evaluator-rubric.md 每轮收尾同步（连续两轮未同步即判过程可观测性不合格）、新增维度不得长期挂“待评分”。docs/PROCESS.md 陈旧状态修正：阶段表四行“待进入”→“已通过”并新增“移交后增量”行；当前阶段 inception → 移交后增量；迭代列表 7 行 → 21 行补全 C5-C8 / G1-G7 / H1-H2 并新增“类别”“状态”两列。docs/construction/h2-process-policy.md 新建迭代协议（目标/范围/实施计划/交付物/退出标准 + 反面案例 + 附 H1 迭代协议补记，使 harness 段自身首尾一致）。evaluator-rubric.md 过程可观测性 3 → 4（给 4 不给 5 的两条理由：政策尚未被任何 G 类迭代实践检验；G1-G4 协议与 G1-G7 评估报告仍不存在，追认是有记录的主动选择但工件确实缺失），交接准备度 4 → 5，总分 4.5 → 4.75/5，结论 Revise → Accept。验证：npm run verify 144 passed ×2 全绿；bash init.sh 全绿；零生产代码改动（git status 仅文档文件）。",
+      "testedAt": "2026-08-08T00:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "process-policy",
+      "ownerRole": "规划者 / 评估者"
     }
   ]
 }
