@@ -77,6 +77,7 @@ class TaskEventsResponse(BaseModel):
 # Process-wide state, set by main.py.
 _task_store: TaskStore | None = None
 _pipeline: IndexingPipeline | None = None
+_controller = None
 
 
 def set_task_store(store: TaskStore) -> None:
@@ -89,6 +90,11 @@ def set_pipeline(p: IndexingPipeline | None) -> None:
     _pipeline = p
 
 
+def set_controller(controller) -> None:
+    global _controller
+    _controller = controller
+
+
 def get_task_store() -> TaskStore:
     if _task_store is None:
         raise HTTPException(status_code=503, detail="task store not initialized")
@@ -99,10 +105,148 @@ def get_pipeline() -> IndexingPipeline | None:
     return _pipeline
 
 
+def get_controller():
+    return _controller
+
+
+def _parser_name_for_suffix(suffix: str) -> str | None:
+    s = suffix.lower()
+    if s in {".xlsx", ".xls"}:
+        return "excel"
+    if s in {".docx", ".doc"}:
+        return "word"
+    if s == ".pdf":
+        return "pdf"
+    if s in {".md", ".markdown"}:
+        return "markdown"
+    return None
+
+
+def _record_blackboard_progress(
+    store: TaskStore,
+    task_id: str,
+    change,
+) -> None:
+    """Map blackboard changes to the existing TaskStage/progress contract."""
+    kind = change.kind
+    status = change.status
+    if kind == "import_job" and status == "ready":
+        store.add_event(task_id, TaskStage.QUEUED.value, 0.05, "queued blackboard import")
+        store.update(task_id, stage=TaskStage.QUEUED.value, progress=0.05)
+        return
+    if kind == "parsed_document" and status == "ready":
+        message = f"parsed {change.entry.payload.get('source_path', 'document')}"
+        store.add_event(task_id, TaskStage.PARSING.value, 0.15, message)
+        store.update(task_id, stage=TaskStage.PARSING.value, progress=0.15)
+        return
+    if kind == "chunk_set" and status == "ready":
+        count = change.entry.payload.get("count", 0)
+        store.add_event(task_id, TaskStage.CHUNKING.value, 0.30, f"{count} chunks")
+        store.update(task_id, stage=TaskStage.CHUNKING.value, progress=0.30)
+        return
+    if kind == "embedded_chunk_set" and status == "ready":
+        count = change.entry.payload.get("count", 0)
+        store.add_event(task_id, TaskStage.EMBEDDING.value, 0.80, f"embedded {count} chunks")
+        store.update(task_id, stage=TaskStage.EMBEDDING.value, progress=0.80)
+        return
+    if kind == "index_result" and status == "done":
+        written = change.entry.payload.get("written", 0)
+        store.add_event(task_id, TaskStage.WRITING.value, 1.0, f"wrote {written} chunks")
+        store.update(task_id, stage=TaskStage.WRITING.value, progress=1.0)
+        return
+    if status == "failed":
+        message = change.entry.error or change.summary
+        store.add_event(task_id, TaskStage.FAILED.value, 0.0, message)
+        store.update(task_id, status="failed", stage=TaskStage.FAILED.value, error=message)
+
+
+async def _run_import_via_blackboard(
+    task_id: str,
+    tmp_path: Path,
+    parser_name: str,
+    mime: str | None,
+    size: int,
+) -> None:
+    controller = get_controller()
+    store = get_task_store()
+
+    async def on_change(change) -> None:
+        _record_blackboard_progress(store, task_id, change)
+
+    unsubscribe = controller.subscribe(on_change)
+    try:
+        snapshot = await controller.submit_import(
+            task_id,
+            file_path=str(tmp_path),
+            parser=parser_name,
+            mime=mime,
+            size=size,
+        )
+    except Exception as e:  # noqa: BLE001
+        store.add_event(task_id, TaskStage.FAILED.value, 0.0, f"blackboard error: {e}")
+        store.update(task_id, status="failed", stage=TaskStage.FAILED.value, error=str(e))
+        return
+    finally:
+        unsubscribe()
+
+    index_result = next(
+        (entry for entry in snapshot if entry.kind == "index_result"),
+        None,
+    )
+    if index_result is not None:
+        result = dict(index_result.payload)
+        parsed = next(
+            (entry for entry in snapshot if entry.kind == "parsed_document"),
+            None,
+        )
+        if parsed is not None:
+            result["parser"] = parsed.payload.get("metadata", {}).get("parser")
+        store.add_event(
+            task_id,
+            TaskStage.DONE.value,
+            1.0,
+            f"indexed {index_result.payload['written']} chunks for {index_result.payload['document_id']}",
+        )
+        store.update(
+            task_id,
+            status="done",
+            stage=TaskStage.DONE.value,
+            progress=1.0,
+            result=result,
+        )
+        return
+
+    chunk_set = next(
+        (entry for entry in snapshot if entry.kind == "chunk_set"),
+        None,
+    )
+    chunks = chunk_set.payload.get("count", 0) if chunk_set else 0
+    parsed = next(
+        (entry for entry in snapshot if entry.kind == "parsed_document"),
+        None,
+    )
+    store.add_event(task_id, TaskStage.DONE.value, 1.0, "empty document; nothing indexed")
+    store.update(
+        task_id,
+        status="done",
+        stage=TaskStage.DONE.value,
+        progress=1.0,
+        result={
+            "document_id": parsed.payload.get("document_id") if parsed else "",
+            "chunks": chunks,
+            "embedded": 0,
+            "written": 0,
+            "parser": parsed.payload.get("metadata", {}).get("parser") if parsed else None,
+            "note": "no chunks to index",
+        },
+    )
+
+
 async def _run_import(
     task_id: str,
     tmp_path: Path,
     parser,
+    parser_name: str | None,
     mime: str | None,
     size: int,
 ) -> None:
@@ -120,6 +264,9 @@ async def _run_import(
         progress=0.10,
     )
     store.add_event(task_id, TaskStage.PARSING.value, 0.10, f"queued by {_run_import.__name__}")
+    if get_controller() is not None and get_pipeline() is None and parser_name is not None:
+        await _run_import_via_blackboard(task_id, tmp_path, parser_name, mime, size)
+        return
     try:
         doc = parser(tmp_path)
     except Exception as e:  # noqa: BLE001
@@ -237,6 +384,7 @@ async def import_file(
         task_id,
         tmp_path,
         parser,
+        _parser_name_for_suffix(suffix),
         file.content_type,
         len(data),
     )

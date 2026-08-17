@@ -19,6 +19,12 @@ from pathlib import Path
 # through ``os.environ``.
 os.environ.setdefault("KB_EMBED_BACKEND", "mock-hash")
 os.environ.setdefault("KB_EMBED_DIM", "1024")
+# Keep module-level app state (TaskStore + blackboard projection) inside the
+# repo so tests do not need write access to ``~/.kb-server``.
+os.environ.setdefault(
+    "KB_DATA_DIR",
+    str(Path(__file__).resolve().parents[1] / "var" / "test-blackboard"),
+)
 
 # Allow `import app...` from the tests directory.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

@@ -12,6 +12,8 @@ uses). The active datasource handle is set by ``app.main`` after
 """
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
@@ -27,11 +29,19 @@ router = APIRouter(prefix="/v1/chunks", tags=["chunks"])
 # Active datasource handle set by ``app.main`` after _resolve_default_datasource
 # succeeds. Tests can override by calling ``set_active_datasource``.
 _active_datasource: DataSource | None = None
+_controller = None
 
 
 def set_active_datasource(ds: DataSource | None) -> None:
     global _active_datasource
     _active_datasource = ds
+    if _controller is not None:
+        _controller.set_datasource(ds)
+
+
+def set_controller(controller) -> None:
+    global _controller
+    _controller = controller
 
 
 def get_active_datasource() -> DataSource:
@@ -41,6 +51,10 @@ def get_active_datasource() -> DataSource:
             detail="no active datasource bound; check server startup logs",
         )
     return _active_datasource
+
+
+def get_controller():
+    return _controller
 
 
 class BrowseResponse(BaseModel):
@@ -80,6 +94,21 @@ async def browse(
         )
 
     try:
+        if get_controller() is not None:
+            snapshot = await get_controller().submit_browse(
+                uuid.uuid4().hex,
+                document_id=document_id,
+                parser=parser,
+                offset=offset,
+                limit=limit,
+            )
+            result = next(
+                (entry for entry in snapshot if entry.kind == "browse_result"),
+                None,
+            )
+            if result is None:
+                raise RuntimeError("browse result missing from blackboard")
+            return BrowseResponse(**result.payload)
         chunks, total = await ds.list_chunks(
             document_id=document_id,
             parser=parser,

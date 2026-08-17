@@ -2,10 +2,20 @@
 
 ## Current State
 
-**Last Updated:** 2026-08-08T00:00:00.000Z
-**Active Feature:** 无（H2 已收尾；本轮为过程政策确立，未改动生产代码）
+**Last Updated:** 2026-08-17T00:00:00.000Z
+**Active Feature:** C9 黑板体系落地（生产默认导入/检索/浏览已接入黑板控制器）
 **Current RUP Phase:** 移交后增量（transition 已通过）
-**Current Iteration:** G1-G7 全 ✅ + **H1 (harness 文档同步) ✅ + H2 (过程政策确立) ✅**
+**Current Iteration:** G1-G7 全 ✅ + H1/H2 ✅ + **C9 (黑板体系落地) ✅**
+
+## 实测基线（2026-08-17 C9）
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | 158 tests collected |
+| 本沙箱 `pytest tests/` | 150 passed + 8 skipped（Milvus Lite 不可用；若 Milvus 可跑应为 158 passed） |
+| `ruff` 新增模块 | 0 errors |
+| `npm --prefix desktop run check` | 0 errors |
+| `npm --prefix desktop run build` | Vite 161.91 kB JS / 39 modules |
 
 ## 实测基线（2026-08-08 复核）
 
@@ -106,6 +116,7 @@
   - **意外发现并修复**：`feature_list.json` 中 `feat-construction-1`…`-4` 与 `feat-transition-handoff` 共 5 个条目各有**两个 `evidence` 键**——真实内容在前、空字符串在后。按 JSON 语义后者覆盖前者，这 5 项的 evidence 对**任何标准解析器**都是空值，证据链实际是断的（此前"evidence 齐备"的判断都基于肉眼看原始文本）。已去重并保留真实内容，21/21 条目 evidence 均非空且可被解析器读到。
   - 重评：`evaluator-rubric.md` 过程可观测性 3 → **4**（不给 5 的两条理由：政策尚未被任何 G 类迭代实践检验；G1-G4 协议与 G1-G7 评估报告仍不存在，追认是有记录的主动选择但工件确实缺失）；交接准备度 4 → 5；总分 4.5 → **4.75/5**；结论 Revise → **Accept**。`quality-document.md` 两个 B 回升，Overall A- → **A**。
   - 验证：`npm run verify` 144 passed ×2；`bash init.sh` 全绿；`feature_list.json` 与原始版本逐字段比对——原 19 项内容完全一致，仅新增 H1/H2 两项。
+- [x] **C9 黑板体系落地**：生产默认路径从线性 pipeline 切换为黑板控制器。新增 `server/app/blackboard/`（Blackboard / Patch / 事件总线 / 词汇表 / 注册表 / Agenda / Scheduler / ResourceManager / BlackboardProjector）和 `server/app/blackboard/sources/` 7 个知识源（ParseFile / ChunkText / ChunkEmbedding / QueryEmbedding / WriteDatasource / SemanticRetrieval / Browse）。`main.py` 默认创建控制器并注册知识源；files/search/chunks API 在存在控制器时走黑板路径，旧 pipeline 保留兼容路径；`tests/blackboard/` 新增 13 项（条目/事件/乐观并发/注册校验/冲突/资源/导入检索浏览/投影/知识源隔离）。文档：`docs/elaboration/01-architecture-baseline.md` 补黑板结构，`docs/construction/c9-blackboard-architecture.md` + `c9-blackboard-evaluation.md`。验证：`pytest tests/` 158 collected（沙箱 Milvus skip 8，实际 150 passed）；`ruff check` 新增模块 0 errors；desktop check 0 errors；Vite build 161.91 kB。
 
 ### What's In Progress
 

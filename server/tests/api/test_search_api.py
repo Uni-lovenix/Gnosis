@@ -75,6 +75,20 @@ def test_search_pipeline_not_configured(tmp_path: Path):
     app = create_app()
     files_api.set_task_store(TaskStore(tmp_path / "tasks.db"))
     search_api2.set_pipeline(None)
+    search_api2.set_controller(None)
     c = TestClient(app)
     r = c.post("/v1/search", json={"query": "anything"})
     assert r.status_code == 503
+
+
+def test_search_default_blackboard_path(tmp_path: Path):
+    from app.api import search as search_api2
+
+    app = create_app()
+    files_api.set_task_store(TaskStore(tmp_path / "tasks.db"))
+    assert search_api2.get_controller() is not None
+    assert search_api2.get_pipeline() is None
+    c = TestClient(app)
+    r = c.post("/v1/search", json={"query": "anything"})
+    assert r.status_code == 200
+    assert r.json()["hits"] == []

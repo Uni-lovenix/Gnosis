@@ -6,13 +6,14 @@
   2. 文件导入（excel、word、pdf、markdown）
   3. embedding 模型 bge-m3
   4. 向量化后存入数据库
-- Current status: **G1-G7 + H1 + H2 全 pass**；`feature_list.json` 21/21 = pass（evidence 全部非空）。
+- Current status: **G1-G7 + H1 + H2 + C9 全 pass**；黑板体系已作为生产默认编排路径落地。
   - G5 = KI-03 收敛（OpenAI 兼容远端指数退避）。`npm run verify` 120 passed（113 + 7）；`embedder.retry` 结构化日志可见。
   - G6 = 上传进度可观测性（阶段文字 + 事件日志）。`TaskStore` v1 schema（`stage` 列 + `task_events` ring buffer）；`TaskResponse.events` 嵌入最近 32 条；`npm run verify` 125 passed（113 + 12）；前端 ImportPage 新增 stage tag + 折叠事件日志；Vite 153.74 kB。
   - G7 = ES 数据浏览页（chunk-level + 文档聚合 + 过滤 + 分页）。`ElasticsearchAdapter` 加 `list_chunks` + `aggregate_by_document`；`DataSource` 基类新增可选 `list_chunks`/`aggregate_by_document`（默认抛 `NotSupportedError`，仅 ES 实现 `chunk_list` capability）；新增 `GET /v1/chunks`；前端 BrowsePage（parser 下拉 + document_id debounce 输入 + 聚合表 + 分页 + 不支持 capability 永久 banner）；Vite 158.61 kB。
   - H1 = harness 文档同步 + 双层可观测性补分（纯文档轮，零生产代码改动）。三份 harness 文件从 G1/T1 基线同步到 G7 实测；补齐自 T1 悬空 7 轮的可观测性评分（运行时 4/5、过程 3/5）。
   - H2 = 过程政策确立（纯文档轮，零生产代码改动）。`docs/PROCESS.md` 新增 §迭代分类与评估策略（C 类必须评估报告，G/H 类走自验 + 四项最低要求 + 四条升级触发条件）与 §记录口径约定；修正该文件此前停在 `当前阶段：inception` 的陈旧状态；顺带修复 `feature_list.json` 5 处重复 `evidence` 键。过程可观测性 3 → 4，总分 4.5 → 4.75/5，结论 Accept。
 - **实测基线（2026-08-08 复核，取代此前所有历史抄录）**：`npm run test:unit` **144 passed in 5.21s**；`test:integration` **144 passed in 4.68s**；`tsc --noEmit` 0 errors；Vite **158.61 kB JS + 7.00 kB CSS / 38 模块**；`eval:mock` 9/10；`node --test scripts/test-server-manager.cjs` 2 passed。
+- **实测基线（2026-08-17 C9）**：`pytest --collect-only` **158 tests collected**；本沙箱 Milvus Lite 不可用，实际 **150 passed + 8 skipped**；`ruff check` 新增模块 0 errors；`desktop check` 0 errors；Vite **161.91 kB JS / 39 modules**。
   - ⚠️ G7 记录的 "136 passed" 是 Milvus 适配器 skip 状态下的计数，差值 8 = `tests/datasources/test_milvus_adapter.py` 的 8 项。**非回归**。记录测试数请统一走 `npm run test:unit`（它带 `KB_MILVUS_URI=./kb_milvus_lite.db`，Milvus 会全跑）。
 - Branch / commit: `main` · HEAD `72d8a2a` · remote `origin` = `https://github.com/Uni-lovenix/Gnosis.git`（已 push，仓库现非空）
 
@@ -53,6 +54,7 @@ git push origin main
 - [x] C6 KI-09 任务表过期清理：`docs/construction/c6-milvus-tests.md` + `c6-evaluation.md`（5/5）
 - [x] C7 KI-07 Milvus 1:1 单测：`docs/construction/c6-milvus-tests.md` + `c6-evaluation.md`（5/5）
 - [x] C8 KI-02 MySQL O(N) 性能收敛：`docs/construction/c7-mysql-perf.md` + `c7-evaluation.md`（5/5）
+- [x] **C9 黑板体系落地**：生产默认导入/检索/浏览切换为黑板控制器；新增 `server/app/blackboard/`（Blackboard / Patch / 事件总线 / 词汇表 / 注册表 / Agenda / Scheduler / ResourceManager / BlackboardProjector）和 `server/app/blackboard/sources/` 7 个知识源；旧 pipeline 保留兼容路径；`tests/blackboard/` 新增 13 项；文档 `docs/construction/c9-blackboard-architecture.md` + `c9-blackboard-evaluation.md`；`docs/elaboration/01-architecture-baseline.md` 同步黑板结构。
 - [x] G1 goal.md → 实际项目栈映射：`docs/goal/01-mapping.md`（目录结构 + 验收项 + 验证命令三层映射表）；新建根级 `package.json`（不动 `desktop/package.json` 的 start/build/dev）：`npm run check`（= `tsc --noEmit`）0 errors、`npm run lint` 0 errors、`npm run test:unit` 89 passed、`npm run test:integration` 89 passed、`npm run eval` 9/10 (90%)、`npm run build` Vite 148.70 kB。
 - [x] **G2 数据源配置 CRUD**：`server/app/observability/datasource_store.py`（v1 schema、原子写 `os.replace`、损坏文件自动备份）+ `server/app/api/datasources.py` 5 个新 endpoints + `main._build_default_components()` 启动加载 active 配置 + `SettingsPage.tsx` 完整 CRUD UI（Add / Edit / Test / Save / Activate / Delete / Clear active）+ `docs/API.md` §数据源 + `RUNBOOK.md` §"数据源配置管理" + `goal/01-mapping.md` 验收映射更新；`npm run test:unit` 113 passed（+24）、`npm run test:integration` 113 passed（+24）、`npm run build` Vite 152.27 kB。
 - [x] **G3 Ollama bge-m3 真模型**：`scripts/start_server_ollama.sh` + `eval --embedder openai-compat`；`/v1/files/import` README.md 真嵌入；`/v1/search` 真实打分；eval 10/10 = 100%。

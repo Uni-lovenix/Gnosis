@@ -38,6 +38,23 @@
             └─► 切片器（按 token/字符切分 + overlap）
 ```
 
+## 2.1 黑板体系结构（C9 基线）
+
+生产默认路径已从“线性 pipeline 编排”升级为黑板体系：
+
+```
+FastAPI 路由 → BlackboardController（议程 + 调度器 + 资源管理）
+                    ↓ 读写
+              Blackboard（统一条目 + 事件总线）
+                    ↓ 触发
+        独立 Knowledge Source（parse/chunk/embed/write/retrieve/browse）
+```
+
+- 黑板是进程内共享状态中心，使用统一 `BlackboardEntry` 数据模型和 `Patch + expected_revision` 乐观并发控制。
+- 知识源之间不直接通信；每个知识源只通过 `can_handle` / `execute` 与黑板交互，由控制组件调度。
+- SQLite 投影表 `blackboard_entries` 保存当前黑板快照；该表与现有 `tasks`、`task_events` 共存于 TaskStore 数据库。
+- 旧 `IndexingPipeline` / `RetrievalPipeline` 仍保留，仅作为兼容测试路径；生产默认使用黑板控制器。
+
 ## 3. 模块边界
 
 | 模块 | 职责 | 不做 |
@@ -51,6 +68,8 @@
 | `server/embedding/` | 文本 → 向量（含本地/远端） | 不做入库 |
 | `server/datasources/` | 向量与元数据写入/读取（4 类适配） | 不做 embedding |
 | `server/pipeline/` | 编排：解析→切片→embedding→入库 | 不直连 UI |
+| `server/blackboard/` | 黑板条目、事件总线、知识源注册、议程/调度/资源管理 | 不实现具体业务 |
+| `server/blackboard/sources/` | 文件解析、切片、embedding、写入、检索、浏览等知识源 | 不直接调用其他知识源 |
 
 ## 4. 接口契约
 
@@ -119,10 +138,12 @@ interface KBAPI {
 user → renderer 选择文件
      → preload.importFile(path)
      → main 转发到 Python POST /v1/files/import
-     → Python: parser.parse(file) → Document
-            → chunker.split(Document) → Chunks
-            → embedder.embed(Chunks.text) → vectors
-            → DataSource.add(Chunks+vectors) → ids
+     → Python 生产默认:
+            BlackboardController.submit_import()
+            → ParseFileKS → ParsedDocument
+            → ChunkTextKS → ChunkSet
+            → ChunkEmbeddingKS → EmbeddedChunkSet
+            → WriteDatasourceKS → IndexResult
      → 返回 {documentId, chunks} → renderer 列表更新
 ```
 
@@ -132,8 +153,10 @@ user → renderer 选择文件
 user → renderer 输入 query
      → preload.search(query, opts)
      → main POST /v1/search
-     → Python: embedder.embed([query]) → vector
-            → DataSource.search(vector, top_k) → Hits
+     → Python 生产默认:
+            BlackboardController.submit_search()
+            → QueryEmbeddingKS → SearchJob(query_vector)
+            → SemanticRetrievalKS → SearchResult
      → 返回 hits → renderer 展示
 ```
 

@@ -24,7 +24,22 @@ from app.embedding.factory import build_embedder
 from app.observability.datasource_store import DatasourceStore
 from app.observability.logging import configure_logging, get_logger
 from app.observability.task_store import TaskStore
-from app.pipeline.retrieval import RetrievalPipeline
+from app.blackboard.control import BlackboardController, ResourceManager
+from app.blackboard.core import Blackboard
+from app.blackboard.events import BlackboardEventBus
+from app.blackboard.projection import BlackboardProjector
+from app.blackboard.registry import KnowledgeSourceRegistry
+from app.blackboard.resources import DatasourceResource
+from app.blackboard.sources import (
+    BrowseKS,
+    ChunkEmbeddingKS,
+    ChunkTextKS,
+    ParseFileKS,
+    QueryEmbeddingKS,
+    SemanticRetrievalKS,
+    WriteDatasourceKS,
+)
+from app.blackboard.vocabulary import BlackboardVocabulary
 
 settings = get_settings()
 configure_logging(level=settings.log_level, json_output=settings.log_json)
@@ -135,6 +150,49 @@ def _build_default_components():
     return embedder, chosen
 
 
+def _build_blackboard_controller(embedder, datasource, projection_path):
+    """Build the blackboard controller used by the default production path."""
+    vocabulary = BlackboardVocabulary()
+    event_bus = BlackboardEventBus()
+    blackboard = Blackboard(vocabulary=vocabulary, event_bus=event_bus)
+    resources = ResourceManager(
+        {
+            "parser": 1,
+            "chunker": 1,
+            "embedder": 1,
+            "datasource_write": 1,
+            "search": 1,
+            "llm": 1,
+        }
+    )
+    registry = KnowledgeSourceRegistry(vocabulary, known_resources=set(resources.capacities))
+    datasource_resource = DatasourceResource(datasource)
+    controller = BlackboardController(
+        blackboard=blackboard,
+        event_bus=event_bus,
+        registry=registry,
+        resource_manager=resources,
+        datasource_resource=datasource_resource,
+    )
+
+    controller.register_knowledge_source(ParseFileKS())
+    controller.register_knowledge_source(ChunkTextKS())
+    controller.register_knowledge_source(ChunkEmbeddingKS(embedder))
+    controller.register_knowledge_source(WriteDatasourceKS(datasource_resource))
+    controller.register_knowledge_source(QueryEmbeddingKS(embedder))
+    controller.register_knowledge_source(SemanticRetrievalKS(datasource_resource))
+    controller.register_knowledge_source(BrowseKS(datasource_resource))
+
+    projector = BlackboardProjector(projection_path)
+    event_bus.subscribe(projector.on_change)
+    log.info(
+        "blackboard.ready",
+        knowledge_sources=[ks.descriptor.ks_id for ks in registry.list()],
+        projection=str(projection_path),
+    )
+    return controller
+
+
 def _embedder_hint(backend: str, reason: str) -> str:
     """Return a one-line remediation hint per backend.
 
@@ -167,14 +225,10 @@ def create_app() -> FastAPI:
 
     embedder, ds = _build_default_components()
     if ds is not None:
-        from app.pipeline.indexing import IndexingPipeline
-
-        files_api.set_pipeline(IndexingPipeline(ds, embedder))
-        search_api.set_pipeline(RetrievalPipeline(ds, embedder))
-        # G7: bind the same DataSource to the browse endpoint so users can
-        # inspect what they just imported. Per G2 design, the active handle
-        # only changes on server restart; runtime hot-swap is intentionally
-        # out of scope (see RUNBOOK §2).
+        controller = _build_blackboard_controller(embedder, ds, task_store.path)
+        files_api.set_controller(controller)
+        search_api.set_controller(controller)
+        chunks_api.set_controller(controller)
         chunks_api.set_active_datasource(ds)
 
     app.include_router(health_api.router)

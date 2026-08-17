@@ -1,7 +1,7 @@
 {
   "project": "灵知 (Gnosis)",
   "description": "1. 支持多数据源配置（最少支持elasticsearch，postgresql，mysql，向量数据库）\n2. 支持文件导入功能，包括：excel，word，pdf，markdown等\n3. 要能向量化数据，支持embedding模型，模型使用bge-m3\n4. 数据向量化后存入存入数据库",
-  "last_updated": "2026-08-08T00:00:00.000Z",
+  "last_updated": "2026-08-17T00:00:00.000Z",
   "status_legend": {
     "not_started": "功能还没开始做。",
     "in_progress": "这个功能是当前唯一正在进行的任务。",
@@ -300,6 +300,20 @@
       "rupPhase": "transition",
       "iteration": "process-policy",
       "ownerRole": "规划者 / 评估者"
+    },
+    {
+      "id": "feat-blackboard-architecture",
+      "name": "黑板体系结构落地（C9）",
+      "description": "把生产默认导入/检索/浏览路径从线性 pipeline 切换为黑板体系：黑板统一状态中心、知识源注册与发现、议程/调度器/资源管理、黑板事件通知和 SQLite 投影。",
+      "dependencies": [
+        "feat-process-policy"
+      ],
+      "status": "pass",
+      "evidence": "server/app/blackboard/（Blackboard / Patch / 事件总线 / 词汇表 / 注册表 / Agenda / Scheduler / ResourceManager / BlackboardProjector）+ server/app/blackboard/sources/ 7 个知识源；main.py 默认创建 BlackboardController；files/search/chunks API 在存在控制器时走黑板路径，旧 pipeline 保留兼容路径；tests/blackboard/ 新增 13 项；pytest --collect-only 158 tests；本沙箱 150 passed + 8 skipped（Milvus Lite 不可用）；ruff 新增模块 0 errors；desktop check 0 errors；Vite build 161.91 kB JS / 39 modules；docs/elaboration/01-architecture-baseline.md + docs/construction/c9-blackboard-architecture.md + c9-blackboard-evaluation.md。",
+      "testedAt": "2026-08-17T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c9-blackboard",
+      "ownerRole": "AI 与智能体开发者 / 数据与报表开发者"
     }
   ]
 }
