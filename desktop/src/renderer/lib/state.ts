@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { kb } from "./kb";
-import type { Hit, TaskEvent, TaskStage, TaskStatus } from "../../shared/types";
+import type { HealthInfo, Hit, TaskEvent, TaskStage, TaskStatus } from "../../shared/types";
 
 export type AppState =
   | { kind: "idle" }
@@ -44,6 +44,7 @@ export function useAppState() {
   const [state, setState] = useState<AppState>({ kind: "idle" });
   const [results, setResults] = useState<Hit[]>([]);
   const [serverReady, setServerReady] = useState<boolean>(false);
+  const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null);
   // Monotonic counter bumped each time an import lands in ``completed``.
   // The import-history panel watches this to know when to re-fetch.
   const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0);
@@ -88,10 +89,12 @@ export function useAppState() {
 
   const checkHealth = useCallback(async (): Promise<void> => {
     try {
-      await kb.health();
+      const health = await kb.health();
       setServerReady(true);
+      setHealthInfo(health);
     } catch (e) {
       setServerReady(false);
+      setHealthInfo(null);
       setState({ kind: "error", message: `Server unreachable: ${String(e)}` });
     }
   }, []);
@@ -144,6 +147,7 @@ export function useAppState() {
     state,
     results,
     serverReady,
+    healthInfo,
     checkHealth,
     importFile,
     search,

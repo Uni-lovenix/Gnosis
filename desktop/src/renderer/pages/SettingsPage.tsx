@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { kb } from "../lib/kb";
 import type {
+  BackupInfo,
   DatasourceConfigRecord,
   DatasourceInfo,
+  HaSettings,
 } from "../../shared/types";
 
 interface Props {
@@ -29,6 +31,10 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
   const [saved, setSaved] = useState<DatasourceConfigRecord[]>([]);
   const [activeName, setActiveName] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string | null>(null);
+  const [haSettings, setHaSettings] = useState<HaSettings | null>(null);
+  const [failoverText, setFailoverText] = useState<string>("");
+  const [backups, setBackups] = useState<BackupInfo[]>([]);
+  const [backupBusy, setBackupBusy] = useState<boolean>(false);
   const [toast, setToast] = useState<Toast>(null);
 
   const refresh = useCallback(async () => {
@@ -44,8 +50,35 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
     }
   }, []);
 
+  const refreshBackups = useCallback(async () => {
+    try {
+      setBackups(await kb.listBackups());
+    } catch (e) {
+      setToast({ kind: "error", message: `backup list failed: ${String(e)}` });
+    }
+  }, []);
+
+  const refreshFailover = useCallback(async () => {
+    try {
+      setFailoverText((await kb.listFailover()).join(", "));
+    } catch (e) {
+      setToast({ kind: "error", message: `failover list failed: ${String(e)}` });
+    }
+  }, []);
+
+  const refreshHaSettings = useCallback(async () => {
+    try {
+      setHaSettings(await kb.getHaSettings());
+    } catch (e) {
+      setToast({ kind: "error", message: `ha settings load failed: ${String(e)}` });
+    }
+  }, []);
+
   useEffect(() => {
     void refresh();
+    void refreshBackups();
+    void refreshFailover();
+    void refreshHaSettings();
   }, [refresh]);
 
   const parsedOptions = useMemo<Record<string, unknown> | null>(() => {
@@ -130,6 +163,17 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
     }
   }
 
+  async function runSwitch(name: string): Promise<void> {
+    try {
+      const cfg = await kb.switchDatasourceConfig(name);
+      setActiveName(cfg.name);
+      setToast({ kind: "ok", message: `switched active datasource to "${cfg.name}" without restart` });
+      await refresh();
+    } catch (e) {
+      setToast({ kind: "error", message: `switch failed: ${String(e)}` });
+    }
+  }
+
   async function runDeactivate(): Promise<void> {
     try {
       await kb.deactivateDatasource();
@@ -149,6 +193,57 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
       await refresh();
     } catch (e) {
       setToast({ kind: "error", message: `delete failed: ${String(e)}` });
+    }
+  }
+
+  async function runCreateBackup(): Promise<void> {
+    setBackupBusy(true);
+    try {
+      const b = await kb.createBackup();
+      setToast({ kind: "ok", message: `backup created: ${b.name}` });
+      await refreshBackups();
+    } catch (e) {
+      setToast({ kind: "error", message: `create backup failed: ${String(e)}` });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function runRestoreBackup(name: string): Promise<void> {
+    if (!window.confirm(`Restore snapshot "${name}"? The server will stop and restart.`)) return;
+    setBackupBusy(true);
+    try {
+      const r = await kb.restoreBackup(name);
+      setToast({
+        kind: "ok",
+        message: `restored ${r.restored} file(s); pre-restore kept at ${r.pre_restore}`,
+      });
+      await refreshBackups();
+    } catch (e) {
+      setToast({ kind: "error", message: `restore failed: ${String(e)}` });
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function runSaveFailover(): Promise<void> {
+    const names = failoverText.split(",").map((s) => s.trim()).filter(Boolean);
+    try {
+      const saved = await kb.setFailover(names);
+      setFailoverText(saved.join(", "));
+      setToast({ kind: "ok", message: `failover order saved: ${saved.join(", ") || "none"}` });
+    } catch (e) {
+      setToast({ kind: "error", message: `save failover failed: ${String(e)}` });
+    }
+  }
+
+  async function runClearFailover(): Promise<void> {
+    try {
+      await kb.clearFailover();
+      setFailoverText("");
+      setToast({ kind: "info", message: "failover order cleared" });
+    } catch (e) {
+      setToast({ kind: "error", message: `clear failover failed: ${String(e)}` });
     }
   }
 
@@ -208,8 +303,9 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
       <h3>Saved datasource configs</h3>
       <p className="kb-help">
         Configs persist on the server side at <code>~/.kb-server/datasources.json</code>.
-        The active one is loaded on the next server start (UI-driven edits do not
-        swap a running pipeline mid-flight; restart the desktop app to apply).
+        <strong>Activate</strong> persists the pointer for the next server start;
+        <strong>Switch now</strong> hot-swaps the running datasource (waits for
+        in-flight writes/searches, then applies immediately).
       </p>
       {saved.length === 0 ? (
         <p className="kb-help">No saved configs yet.</p>
@@ -235,6 +331,9 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
                   <button onClick={() => runActivate(cfg.name)} disabled={cfg.name === activeName}>
                     Activate
                   </button>
+                  <button onClick={() => runSwitch(cfg.name)}>
+                    Switch now
+                  </button>
                   <button onClick={() => startEdit(cfg)}>Edit</button>
                   <button onClick={() => runDelete(cfg.name)}>Delete</button>
                 </td>
@@ -248,6 +347,93 @@ export function SettingsPage({ datasources }: Props): JSX.Element {
           Active: <strong>{activeName}</strong>{" "}
           <button onClick={runDeactivate}>Clear active</button>
         </p>
+      )}
+
+      <h3>HA Configuration</h3>
+      {haSettings ? (
+        <table className="kb-configs">
+          <thead>
+            <tr>
+              <th>parameter</th>
+              <th>value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>auto backup</td><td>{haSettings.backup_auto ? "on" : "off"}</td></tr>
+            <tr><td>backup interval (h)</td><td>{haSettings.backup_interval_hours}</td></tr>
+            <tr><td>backup retention</td><td>{haSettings.backup_keep}</td></tr>
+            <tr><td>health monitor</td><td>{haSettings.health_monitor ? "on" : "off"}</td></tr>
+            <tr><td>health monitor interval (s)</td><td>{haSettings.health_monitor_interval_seconds}</td></tr>
+            <tr><td>failover</td><td>{haSettings.failover_enabled ? "on" : "off"}</td></tr>
+            <tr><td>failover consecutive failures</td><td>{haSettings.failover_consecutive_failures}</td></tr>
+            <tr><td>auto recover</td><td>{haSettings.failover_auto_recover ? "on" : "off"}</td></tr>
+            <tr><td>recover consecutive checks</td><td>{haSettings.failover_recover_consecutive_checks}</td></tr>
+          </tbody>
+        </table>
+      ) : (
+        <p className="kb-help">Loading HA settings...</p>
+      )}
+
+      <h3>Failover order</h3>
+      <p className="kb-help">
+        Comma-separated saved config names. When the active datasource fails{" "}
+        <code>KB_FAILOVER_CONSECUTIVE_FAILURES</code> consecutive health checks,
+        the server switches to the first healthy name in this order.
+      </p>
+      <div className="kb-form">
+        <label>
+          failover names{" "}
+          <input
+            value={failoverText}
+            onChange={(e) => setFailoverText(e.target.value)}
+            placeholder="es-prod, mem"
+          />
+        </label>
+        <div className="kb-form-row">
+          <button onClick={runSaveFailover}>Save failover order</button>
+          <button onClick={runClearFailover}>Clear</button>
+        </div>
+      </div>
+
+      <h3>Backup & Restore</h3>
+      <p className="kb-help">
+        Snapshots live under <code>~/.kb-server/backups</code> (or{" "}
+        <code>KB_BACKUP_DIR</code>). Restoring stops the Python service, copies
+        the snapshot back, and restarts it; a pre-restore copy is kept in{" "}
+        <code>.pre-restore</code>.
+      </p>
+      <div className="kb-form-row">
+        <button onClick={runCreateBackup} disabled={backupBusy}>
+          Create backup now
+        </button>
+      </div>
+      {backups.length === 0 ? (
+        <p className="kb-help">No snapshots yet.</p>
+      ) : (
+        <table className="kb-configs">
+          <thead>
+            <tr>
+              <th>snapshot</th>
+              <th>created at</th>
+              <th>files</th>
+              <th>actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {backups.map((b) => (
+              <tr key={b.name}>
+                <td>{b.name}</td>
+                <td>{b.created_at || "—"}</td>
+                <td>{b.files.join(", ") || "—"}</td>
+                <td className="kb-actions">
+                  <button onClick={() => runRestoreBackup(b.name)} disabled={backupBusy}>
+                    Restore
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
       <h3>Available datasource adapter types</h3>

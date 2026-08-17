@@ -35,7 +35,7 @@ export function createServerManager(opts: Options): ServerHandle {
   let stopRequested = false;
 
   function pythonBin(): string {
-    return opts.python ?? "python3";
+    return opts.python ?? process.env.KB_PYTHON ?? "python3";
   }
 
   function serverCwd(): string {

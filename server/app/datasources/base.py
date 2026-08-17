@@ -118,6 +118,22 @@ class DataSource(abc.ABC):
             f"{self.type}.aggregate_by_document not implemented"
         )
 
+    # ---- Optional migration helper (C17) -------------------------------------
+
+    async def dump_all(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> tuple[list[Chunk], int]:
+        """Return full-text chunks for migration, without vector data.
+
+        Adapters advertise the ``dump`` capability when implemented. This is
+        intentionally separate from ``list_chunks`` (browse preview truncates
+        text; migration needs the full text).
+        """
+        raise NotSupportedError(f"{self.type}.dump_all not implemented")
+
     # ---- Optional helpers -----------------------------------------------------
 
     async def close(self) -> None:  # noqa: B027

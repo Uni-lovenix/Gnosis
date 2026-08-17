@@ -18,6 +18,7 @@ export function App(): JSX.Element {
     state,
     results,
     serverReady,
+    healthInfo,
     checkHealth,
     importFile,
     search,
@@ -36,6 +37,8 @@ export function App(): JSX.Element {
         // ignore; UI shows banner
       }
     })();
+    const id = setInterval(() => void checkHealth(), 15_000);
+    return () => clearInterval(id);
   }, [checkHealth]);
 
   return (
@@ -53,6 +56,22 @@ export function App(): JSX.Element {
           ))}
         </nav>
       </header>
+      {healthInfo?.degraded && (
+        <div className="kb-banner-degraded" role="alert">
+          <strong>degraded</strong>
+          <span>
+            {healthInfo.embedder_fallback
+              ? `embedder fell back to ${healthInfo.embedder_backend ?? "mock"}`
+              : healthInfo.active_datasource && healthInfo.active_datasource.ok === false
+                ? `datasource ${healthInfo.active_datasource.name} is not available`
+                : healthInfo.embedder_ok === false
+                  ? "embedder is not available"
+                  : healthInfo.active_datasource
+                    ? "dependencies degraded"
+                    : "no active datasource"}
+          </span>
+        </div>
+      )}
       {state.kind === "error" && (
         <div className="kb-error" role="alert">
           {state.message} <button onClick={resetError}>dismiss</button>

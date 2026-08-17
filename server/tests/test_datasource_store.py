@@ -108,6 +108,31 @@ def test_deactivate_clears(tmp_path: Path) -> None:
     assert store.get_active() is None
 
 
+def test_failover_defaults_empty(tmp_path: Path) -> None:
+    store = _mk(tmp_path)
+    assert store.get_failover() == []
+
+
+def test_set_failover_keeps_known_order_and_dedupes(tmp_path: Path) -> None:
+    store = _mk(tmp_path)
+    store.upsert(name="a", type="vector", options={})
+    store.upsert(name="b", type="vector", options={})
+    saved = store.set_failover(["b", "a", "b", "ghost"])
+    assert saved == ["b", "a"]
+    assert store.get_failover() == ["b", "a"]
+
+
+def test_failover_persists_across_reload(tmp_path: Path) -> None:
+    path = tmp_path / "datasources.json"
+    s1 = DatasourceStore(path)
+    s1.upsert(name="a", type="vector", options={})
+    s1.upsert(name="b", type="vector", options={})
+    s1.set_failover(["b", "a"])
+
+    s2 = DatasourceStore(path)
+    assert s2.get_failover() == ["b", "a"]
+
+
 def test_mark_tested_stamps_timestamp(tmp_path: Path) -> None:
     store = _mk(tmp_path)
     store.upsert(name="a", type="vector", options={})

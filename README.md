@@ -46,10 +46,12 @@ KB_EMBED_BACKEND=mock-hash PYTHONPATH=. uvicorn app.main:app --port 8765
 ```bash
 cd ../desktop
 npm install
-npm run dev   # 自动拉起 Python 子进程
+npm run app   # 或 cd .. && bash scripts/start_app.sh
 ```
 
-桌面端会自动拉起 Python 子进程并通过 `http://127.0.0.1:8765` 与之通信。
+`start_app.sh` 会优先使用 conda 的 Python（`KB_PYTHON` 可覆盖；非 base 环境用
+`KB_CONDA_ENV=myenv`），再拉起 Electron / Vite，Python 子进程通过
+`http://127.0.0.1:8765` 通信。需要检查时：`bash scripts/start_app.sh --check`。
 
 ## 项目结构
 
@@ -88,10 +90,12 @@ npm run dev   # 自动拉起 Python 子进程
 
 ```bash
 bash init.sh                       # harness 完整
-npm run verify                     # check + lint + 113 pytest
+npm run verify                     # check + lint + 167 pytest
 npm run eval                       # 默认走 Ollama bge-m3（10/10 = 100%）
 npm run eval:mock                  # 离线 mock 9/10 = 90%
 npm run eval:bgem3                 # local snapshot 路径
 cd ../desktop && npx tsc --noEmit -p tsconfig.json
 cd ../desktop && node --test scripts/test-server-manager.cjs
+npm run backup                       # 数据目录一致性备份
+cd server && python3 -m app.observability.backup list   # 查看快照
 ```

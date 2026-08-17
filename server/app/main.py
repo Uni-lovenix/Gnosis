@@ -1,14 +1,18 @@
 """FastAPI application entrypoint."""
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from fastapi import FastAPI
 
 from app.api import chunks as chunks_api
+from app.api import backups as backups_api
 from app.api import datasources as datasources_api
 from app.api import files as files_api
+from app.api import ha as ha_api
 from app.api import health as health_api
+from app.api.middleware import install_request_context
 from app.api import search as search_api
 from app.config.settings import get_settings
 from app.datasources.base import DatasourceConfig
@@ -22,6 +26,7 @@ from app.embedding import (  # noqa: F401  (populate registry)
 from app.embedding.base import EmbedderConfig
 from app.embedding.factory import build_embedder
 from app.observability.datasource_store import DatasourceStore
+from app.observability.backup import backup_if_due
 from app.observability.logging import configure_logging, get_logger
 from app.observability.task_store import TaskStore
 from app.blackboard.control import BlackboardController, ResourceManager
@@ -147,6 +152,14 @@ def _build_default_components():
 
     data_dir = Path(settings.data_dir).expanduser()
     chosen, _source = _resolve_default_datasource(data_dir, embedder.dim)
+    health_api.set_runtime_state(
+        embedder=embedder,
+        embedder_backend=embedder.type,
+        embedder_fallback=embedder.type != settings.embed_backend,
+        datasource=chosen,
+        datasource_source=_source,
+        data_dir=str(data_dir),
+    )
     return embedder, chosen
 
 
@@ -218,6 +231,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="灵知 (Gnosis) 后端：文件解析、embedding、向量检索。",
     )
+    install_request_context(app)
 
     data_dir = Path(settings.data_dir).expanduser()
     task_store = TaskStore(data_dir / "tasks.db")
@@ -226,13 +240,18 @@ def create_app() -> FastAPI:
     embedder, ds = _build_default_components()
     if ds is not None:
         controller = _build_blackboard_controller(embedder, ds, task_store.path)
+        datasources_api.set_controller(controller)
+        datasources_api.set_embedder_dim(embedder.dim)
+        datasources_api.set_active_datasource(ds)
         files_api.set_controller(controller)
         search_api.set_controller(controller)
         chunks_api.set_controller(controller)
         chunks_api.set_active_datasource(ds)
 
     app.include_router(health_api.router)
+    app.include_router(ha_api.router)
     app.include_router(datasources_api.router)
+    app.include_router(backups_api.router)
     app.include_router(files_api.router)
     app.include_router(search_api.router)
     app.include_router(chunks_api.router)
@@ -242,6 +261,100 @@ def create_app() -> FastAPI:
 # Module-level singleton that respects ``$KB_DATA_DIR`` (or its default).
 # Tests can override by setting ``os.environ['KB_DATA_DIR']`` before import.
 app = create_app()
+_auto_backup_tasks: set[asyncio.Task] = set()
+_health_monitor_tasks: set[asyncio.Task] = set()
+
+
+async def _auto_backup_loop(
+    data_dir: Path,
+    backup_root: Path,
+    keep: int,
+    interval_hours: float,
+) -> None:
+    log.info(
+        "backup.auto_scheduled",
+        data_dir=str(data_dir),
+        backup_dir=str(backup_root),
+        interval_hours=interval_hours,
+        keep=keep,
+    )
+    while True:
+        try:
+            created, path = backup_if_due(data_dir, backup_root, keep, interval_hours)
+            if created:
+                log.info("backup.auto_created", path=str(path))
+            else:
+                log.info("backup.auto_skipped", latest=str(path))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("backup.auto_failed", reason=str(exc))
+        await asyncio.sleep(3600)
+
+
+def _start_auto_backup() -> None:
+    if not settings.backup_auto:
+        return
+    data_dir = Path(settings.data_dir).expanduser()
+    backup_root = Path(settings.backup_dir or str(data_dir / "backups")).expanduser()
+    task = asyncio.create_task(
+        _auto_backup_loop(
+            data_dir,
+            backup_root,
+            settings.backup_keep,
+            settings.backup_interval_hours,
+        )
+    )
+    _auto_backup_tasks.add(task)
+    task.add_done_callback(_auto_backup_tasks.discard)
+
+
+async def _health_monitor_loop(interval_seconds: int) -> None:
+    log.info("health.monitor_scheduled", interval_seconds=interval_seconds)
+    previous_ok: bool | None = None
+    consecutive_ds_failures = 0
+    consecutive_ds_healthy = 0
+    while True:
+        try:
+            checks = await health_api.refresh_runtime_health()
+            ok = all(c.ok for c in checks)
+            if previous_ok is not None and ok != previous_ok:
+                event = "health.monitor_recovered" if ok else "health.monitor_degraded"
+                log.warning(
+                    event,
+                    checks=[{"name": c.name, "ok": c.ok, "message": c.message} for c in checks],
+                )
+            previous_ok = ok
+            ds_check = next((c for c in checks if c.name == "datasource"), None)
+            if ds_check is not None and ds_check.ok is False:
+                consecutive_ds_failures += 1
+                if (
+                    settings.failover_enabled
+                    and consecutive_ds_failures == settings.failover_consecutive_failures
+                ):
+                    result = await datasources_api.failover_datasource()
+                    if result is not None:
+                        consecutive_ds_failures = 0
+            else:
+                consecutive_ds_failures = 0
+                if settings.failover_enabled and settings.failover_auto_recover:
+                    consecutive_ds_healthy += 1
+                    if consecutive_ds_healthy == settings.failover_recover_consecutive_checks:
+                        await datasources_api.recover_primary()
+                        consecutive_ds_healthy = 0
+                else:
+                    consecutive_ds_healthy = 0
+        except Exception as exc:  # noqa: BLE001
+            log.warning("health.monitor_failed", reason=str(exc))
+        await asyncio.sleep(interval_seconds)
+
+
+def _start_health_monitor() -> None:
+    if not settings.health_monitor:
+        return
+    task = asyncio.create_task(
+        _health_monitor_loop(settings.health_monitor_interval_seconds)
+    )
+    _health_monitor_tasks.add(task)
+    task.add_done_callback(_health_monitor_tasks.discard)
 
 
 @app.on_event("startup")
@@ -256,6 +369,21 @@ async def _on_startup() -> None:
         openai_model=settings.openai_model,
         datasources=all_types(),
     )
+    _start_auto_backup()
+    _start_health_monitor()
+
+
+@app.on_event("shutdown")
+async def _on_shutdown() -> None:
+    for task in list(_auto_backup_tasks) + list(_health_monitor_tasks):
+        task.cancel()
+    for task in list(_auto_backup_tasks) + list(_health_monitor_tasks):
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    _auto_backup_tasks.clear()
+    _health_monitor_tasks.clear()
 
 
 def main() -> None:

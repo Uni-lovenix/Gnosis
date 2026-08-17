@@ -8,8 +8,10 @@
  *  - Forward IPC requests from the renderer to the backend.
  */
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { execFile } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
+import { promisify } from "node:util";
 
 import { ApiClient } from "./api-client";
 import { MetaDB } from "./db";
@@ -23,12 +25,14 @@ import type {
   Hit,
   ImportResponse,
   KBAPI,
+  RestoreResult,
   TaskStatus,
 } from "../shared/types";
 
 const isDev = !app.isPackaged;
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..", "..");
 const KB_PORT = Number(process.env.KB_PORT ?? 8765);
+const execFileAsync = promisify(execFile);
 
 // KB_DEBUG_RENDER=1 → open devtools + log renderer console messages to stderr.
 // Used to diagnose blank-renderer issues without manual mouse input.
@@ -52,12 +56,56 @@ function getDataDir(): string {
   return path.join(app.getPath("userData"), "kb-desktop");
 }
 
+async function runRestoreCommand(backupPath: string): Promise<RestoreResult> {
+  const serverDir = path.join(PROJECT_ROOT, "server");
+  const python = process.env.KB_PYTHON ?? "python3";
+  const { stdout } = await execFileAsync(
+    python,
+    ["-m", "app.observability.backup", "restore", backupPath],
+    { cwd: serverDir, env: process.env as Record<string, string> },
+  );
+  const countMatch = stdout.match(/^restored (\d+) file\(s\) from /m);
+  const preMatch = stdout.match(/^pre-restore snapshot: (.+)$/m);
+  if (!countMatch || !preMatch) {
+    throw new Error(`unexpected restore output: ${stdout.slice(0, 200)}`);
+  }
+  const preRestore = preMatch[1];
+  if (!preRestore) {
+    throw new Error(`unexpected restore output: ${stdout.slice(0, 200)}`);
+  }
+  return { restored: Number(countMatch[1]), pre_restore: preRestore };
+}
+
 function attachIpc(): void {
   const handlers: KBAPI = {
     serverUrl: async () => server.baseUrl,
     health: async () => {
       if (!api) throw new Error("server not ready");
       return api.health();
+    },
+    getHaSettings: async () => {
+      if (!api) throw new Error("server not ready");
+      return api.getHaSettings();
+    },
+    listBackups: async () => {
+      if (!api) throw new Error("server not ready");
+      return api.listBackups();
+    },
+    createBackup: async () => {
+      if (!api) throw new Error("server not ready");
+      return api.createBackup();
+    },
+    restoreBackup: async (name: string): Promise<RestoreResult> => {
+      if (!api) throw new Error("server not ready");
+      const snapshots = await api.listBackups();
+      const target = snapshots.find((s) => s.name === name);
+      if (!target) throw new Error(`backup not found: ${name}`);
+      await server.stop();
+      try {
+        return await runRestoreCommand(target.path);
+      } finally {
+        await server.start();
+      }
     },
     listDatasources: async () => {
       if (!api) throw new Error("server not ready");
@@ -90,6 +138,22 @@ function attachIpc(): void {
     activateDatasourceConfig: async (name: string): Promise<DatasourceConfigRecord> => {
       if (!api) throw new Error("server not ready");
       return api.activateDatasourceConfig(name);
+    },
+    switchDatasourceConfig: async (name: string): Promise<DatasourceConfigRecord> => {
+      if (!api) throw new Error("server not ready");
+      return api.switchDatasourceConfig(name);
+    },
+    listFailover: async (): Promise<string[]> => {
+      if (!api) throw new Error("server not ready");
+      return api.listFailover();
+    },
+    setFailover: async (names: string[]): Promise<string[]> => {
+      if (!api) throw new Error("server not ready");
+      return api.setFailover(names);
+    },
+    clearFailover: async (): Promise<string[]> => {
+      if (!api) throw new Error("server not ready");
+      return api.clearFailover();
     },
     deactivateDatasource: async () => {
       if (!api) throw new Error("server not ready");

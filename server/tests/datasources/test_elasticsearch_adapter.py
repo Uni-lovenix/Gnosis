@@ -139,6 +139,7 @@ def test_es_capabilities_include_metadata_filter():
     assert "metadata_filter" in adapter.capabilities()
     assert "bm25_hybrid" in adapter.capabilities()
     assert "chunk_list" in adapter.capabilities()  # G7
+    assert "dump" in adapter.capabilities()  # C17
 
 
 # ---- G7: list_chunks / aggregate_by_document --------------------------------
@@ -216,6 +217,35 @@ async def test_es_list_chunks_filters_by_document_id_and_parser(patched_es):
     filters = body["query"]["bool"]["filter"]
     assert {"term": {"document_id": "d-42"}} in filters
     assert {"term": {"metadata.parser": "pdf"}} in filters
+
+
+@pytest.mark.asyncio
+async def test_es_dump_all_returns_full_text(patched_es):
+    long_text = "x" * 500
+    patched_es._next_search_response = _browse_response(
+        hits=[
+            {
+                "_id": "c1",
+                "_source": {
+                    "chunk_id": "c1",
+                    "document_id": "d1",
+                    "text": long_text,
+                    "metadata": {"parser": "markdown"},
+                },
+            }
+        ],
+        total_value=1,
+    )
+    adapter = ElasticsearchAdapter(
+        ElasticsearchConfig(name="es", options={"hosts": ["http://x"], "dim": 4})
+    )
+    chunks, total = await adapter.dump_all(offset=0, limit=10)
+    assert total == 1
+    assert len(chunks) == 1
+    assert chunks[0].text == long_text
+    assert chunks[0].document_id == "d1"
+    body = patched_es.search_calls[-1]
+    assert body["query"] == {"match_all": {}}
 
 
 @pytest.mark.asyncio

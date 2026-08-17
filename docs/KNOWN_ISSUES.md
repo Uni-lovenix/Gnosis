@@ -29,6 +29,16 @@
 | MI-03 | 桌面端 IPC 类型漂移 | `src/shared/types.ts` 单一源，main/preload/renderer 共用 |
 | MI-04 | 配置文件缺字段 | 所有 `*Config` 都对缺省字段有 `.get(key, default)` 兜底 |
 | MI-05 | 评测随机性 | mock embedder 确定性；切换真实 BGE-M3 时固定 `random_state` |
+| MI-06 | 运行时无请求关联追踪 | `server/app/api/middleware.py` 生成/透传 `X-Request-Id`，structlog contextvars 绑定，`http.request` 日志携带同一 id |
+| MI-07 | 数据目录无一致性备份 | `python3 -m app.observability.backup`（SQLite 官方 backup API + JSON 复制 + 保留策略），默认 `~/.kb-server/backups` 保留 7 份 |
+| MI-08 | 启动降级静默（embedder fallback / active 数据源失败） | `/v1/health` 暴露 `degraded / embedder_fallback / active_datasource`，桌面端显示降级横幅 |
+| MI-09 | 备份只有 CLI，无恢复入口 | C11：`restore` / `list` CLI + `/v1/backups` + Settings Backup & Restore（停服 → 恢复 → 重启），恢复前自动留 `.pre-restore` |
+| MI-10 | active 切换需重启服务 | C12：`POST /v1/datasources/active/{name}/switch` + Settings “Switch now”，黑板锁等待在飞写入/检索后热切换 |
+| MI-11 | 备份依赖手动执行 | C13：服务启动即检查 + 每小时 `backup_if_due` 自动快照（默认开启，`KB_BACKUP_AUTO=false` 可关） |
+| MI-12 | 运行期降级不反映到 /v1/health | C14：后台每 30s 探活 datasource + embedder 写入健康快照；桌面 15s 轮询自动更新降级横幅 |
+| MI-13 | 数据源故障只能手动切换 | C15：failover 顺序配置 + 连续失败自动热切换；`datasource.failover` / `failover_exhausted` 日志 |
+| MI-14 | failover 后不会自动切回主数据源 | C16：主库恢复后连续健康达到阈值自动回切；`datasource.failover_recovered` 日志，`KB_FAILOVER_AUTO_RECOVER=false` 可关 |
+| MI-15 | 数据无法跨数据源复制 | C17：`dump_all` capability + `python3 -m app.observability.migrate dump/load`（memory / ES 支持，load 重新 embedding） |
 
 ## 报告新问题
 

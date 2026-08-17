@@ -11,7 +11,6 @@ Backend options:
 """
 from __future__ import annotations
 
-import math
 import time
 from typing import Any, Iterable
 
@@ -161,7 +160,10 @@ class VectorDBAdapter(DataSource):
         log.info("vector.ready", backend=backend, dim=self._dim)
 
     def capabilities(self) -> set[str]:
-        return {"metadata_filter"}
+        caps = {"metadata_filter"}
+        if isinstance(self._backend, _MemoryBackend):
+            caps.add("dump")
+        return caps
 
     async def add(self, chunks: Iterable[Chunk]) -> list[str]:
         ids: list[str] = []
@@ -220,6 +222,31 @@ class VectorDBAdapter(DataSource):
 
     async def delete(self, ids: Iterable[str]) -> int:
         return self._backend.delete(list(ids))
+
+    async def dump_all(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> tuple[list[Chunk], int]:
+        if not isinstance(self._backend, _MemoryBackend):
+            from app.datasources.base import NotSupportedError
+
+            raise NotSupportedError("vector milvus backend does not support dump_all yet")
+        start = max(0, offset)
+        end = min(len(self._backend._ids), start + max(1, limit))
+        rows: list[Chunk] = []
+        for i in range(start, end):
+            meta = dict(self._backend._meta[i])
+            rows.append(
+                Chunk(
+                    id=self._backend._ids[i],
+                    document_id=meta.get("document_id", ""),
+                    text=self._backend._texts[i],
+                    metadata=meta,
+                )
+            )
+        return rows, len(self._backend._ids)
 
     async def health(self) -> HealthStatus:
         start = time.perf_counter()

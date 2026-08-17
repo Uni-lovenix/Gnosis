@@ -12,7 +12,7 @@ from __future__ import annotations
 import time
 from typing import Any, Iterable
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from app.datasources.base import (
     DataSource,
@@ -77,7 +77,7 @@ class ElasticsearchAdapter(DataSource):
     # ---- Capabilities ---------------------------------------------------------
 
     def capabilities(self) -> set[str]:
-        return {"metadata_filter", "delete_by_filter", "bm25_hybrid", "chunk_list"}
+        return {"metadata_filter", "delete_by_filter", "bm25_hybrid", "chunk_list", "dump"}
 
     # ---- Bootstrap ------------------------------------------------------------
 
@@ -241,6 +241,40 @@ class ElasticsearchAdapter(DataSource):
                 )
             )
         return summaries, total
+
+    async def dump_all(
+        self,
+        *,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> tuple[list[Chunk], int]:
+        body: dict[str, Any] = {
+            "query": {"match_all": {}},
+            "sort": [{"document_id": "asc"}, {"chunk_id": "asc"}],
+            "from": max(0, offset),
+            "size": max(1, min(limit, 100)),
+            "_source": ["chunk_id", "document_id", "text", "metadata"],
+        }
+        resp = self._client.search(index=self._index, **body)
+        hits_raw = resp.get("hits", {}).get("hits", [])
+        total_block = resp.get("hits", {}).get("total", {})
+        if isinstance(total_block, dict):
+            total = int(total_block.get("value", len(hits_raw)))
+        else:
+            total = int(total_block or len(hits_raw))
+
+        chunks: list[Chunk] = []
+        for h in hits_raw:
+            src = h.get("_source", {})
+            chunks.append(
+                Chunk(
+                    id=src.get("chunk_id", h.get("_id", "")),
+                    document_id=src.get("document_id", ""),
+                    text=src.get("text", "") or "",
+                    metadata=src.get("metadata", {}) or {},
+                )
+            )
+        return chunks, total
 
     async def aggregate_by_document(self) -> dict[str, DocumentSummary]:
         """Roll up chunks per ``document_id``: chunk count, distinct parser

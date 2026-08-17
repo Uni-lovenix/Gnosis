@@ -19,6 +19,10 @@ from pathlib import Path
 # through ``os.environ``.
 os.environ.setdefault("KB_EMBED_BACKEND", "mock-hash")
 os.environ.setdefault("KB_EMBED_DIM", "1024")
+os.environ.setdefault("KB_BACKUP_AUTO", "false")
+os.environ.setdefault("KB_HEALTH_MONITOR", "false")
+os.environ.setdefault("KB_FAILOVER_ENABLED", "false")
+os.environ.setdefault("KB_FAILOVER_AUTO_RECOVER", "false")
 # Keep module-level app state (TaskStore + blackboard projection) inside the
 # repo so tests do not need write access to ``~/.kb-server``.
 os.environ.setdefault(

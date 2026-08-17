@@ -121,6 +121,83 @@ EmbedderError: remote embed failed after 4 attempt(s): ConnectError: ...
 
 要禁用重试：`max_retries: 0`。
 
+### 2b. 健康检查与降级提示（C10）
+
+服务有三层健康信号：
+
+1. `GET /v1/health` —— 存活快照，返回 `degraded / started_at / uptime_seconds / embedder_backend / embedder_fallback / active_datasource`。桌面端 5s 心跳继续用它；服务能响应就算活，但降级事实会通过顶部黄色横幅展示。
+2. `GET /v1/health/ready` —— 依赖就绪探针（15s TTL 缓存），逐个探活当前 active datasource 与 embedder：
+
+```bash
+curl -sS http://127.0.0.1:8765/v1/health/ready | python3 -m json.tool
+```
+
+3. `X-Request-Id` —— 所有响应头带请求关联 id；后端 `http.request` 日志与业务日志共享同一 `request_id`，排障时按 id 一次拉全链路：
+
+```bash
+grep '"request_id": "abc123"' server.log | tail -50
+```
+
+服务默认每 30s 后台探活 datasource + embedder，并把结果写进 `/v1/health`；
+状态变化时打 `health.monitor_degraded` / `health.monitor_recovered`。桌面端每
+15s 轮询 `/v1/health`，远端数据源中断或恢复时降级横幅会自动更新。配置：
+`KB_HEALTH_MONITOR`（默认 true）/ `KB_HEALTH_MONITOR_INTERVAL_SECONDS`（默认 30）。
+桌面端 Settings → HA Configuration 会只读展示自动备份、健康监控、failover 的
+当前生效参数。
+
+降级横幅常见触发：
+
+| 场景 | 显示 | 修法 |
+|---|---|---|
+| Ollama 没起，embedder 回退 mock | `embedder fell back to mock-hash` | `ollama serve` + `ollama pull bge-m3` 后重启 server |
+| active 数据源构建失败，回退内存 | `no active datasource` | 看启动日志 `datasource.active_load_failed`；修配置或重装依赖后重启 |
+| `/v1/health/ready` 探活失败 | `datasource ... is not available` | 检查远端 ES / PG / Milvus 连接 |
+
+### 2c. 备份/恢复（C10-C13）
+
+`~/.kb-server` 里的 `datasources.json` 与 `tasks.db`（任务 + 黑板投影）可做一致性快照：
+
+```bash
+npm run backup        # 等价：cd server && python3 -m app.observability.backup
+# → backup created: /Users/paul/.kb-server/backups/kb-backup-20260818-003000
+```
+
+默认配置：
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `KB_DATA_DIR` | `~/.kb-server` | 备份来源 |
+| `KB_BACKUP_DIR` | `~/.kb-server/backups` | 备份根目录（可放外部磁盘） |
+| `KB_BACKUP_KEEP` | `7` | 保留最近 N 份，更早的自动清理 |
+| `KB_BACKUP_AUTO` | `true` | 服务运行期间自动备份 |
+| `KB_BACKUP_INTERVAL_HOURS` | `24.0` | 自动备份最小间隔（小时） |
+
+SQLite 用官方 backup API 在线快照，不会出现半截文件；JSON 直接复制并写
+`manifest.json`。
+
+自动备份（C13）：服务启动时若没有新快照会立即创建一份，之后每小时检查一次
+`backup_if_due`，最新快照超过间隔才新建；日志事件为 `backup.auto_scheduled` /
+`backup.auto_created` / `backup.auto_skipped` / `backup.auto_failed`。测试环境
+固定 `KB_BACKUP_AUTO=false`，生产默认开启，可用 `KB_BACKUP_AUTO=false` 关闭。
+
+查看与恢复：
+
+```bash
+cd server && python3 -m app.observability.backup list
+# 输出所有快照的 name / path / created_at / files / source
+
+cd server && python3 -m app.observability.backup restore /path/to/kb-backup-...
+# 恢复前自动把当前数据目录留到 ~/.kb-server/.pre-restore/（保留 3 份）
+```
+
+**恢复必须停 server 后执行**（SQLite 正在被占用时覆盖会损坏数据）。最省事
+的方式是桌面端 **Settings → Backup & Restore**：创建备份、看快照列表、点
+Restore；主进程会先停 Python 服务 → 执行 restore → 再自动重启。备份目录若
+放在外部磁盘，`KB_BACKUP_DIR` 指向该盘即可。
+
+**安全提示**：备份内含 `datasources.json` 的数据库密码。请按 `~/.kb-server`
+同等权限保护备份目录，不要提交到公开仓库或网盘明文共享。
+
 ### 3. 数据源配置管理（CRUD + active 切换）
 
 UI 路径：Settings → "Add new datasource" / "Saved datasource configs"。
@@ -133,7 +210,16 @@ HTTP 路径：`/v1/datasources/{configs,configs/{name},active,active/{name}}`（
 2. 点 **Test connection** 验联通（向 `/v1/datasources/test` 打探针）；
 3. 点 **Save as new config**（或 update 时 **Save changes**）写入；
 4. 在表格里点 **Activate** 让下次启动作为默认 datasource；
-5. 重启桌面端（active 切换不重启运行中 pipeline，避免任务中断）。
+5. 若想**立即生效**，点 **Switch now**（等待在飞写入/检索结束后热切换，无需重启）；若只想为下次启动预选，保留 Activate。
+
+热切换等价 curl：
+
+```bash
+curl -sS -X POST http://127.0.0.1:8765/v1/datasources/active/es-prod/switch
+```
+
+排错：**switch 返回 400 "datasource health check failed"** —— 新配置远端不可达；
+服务不会切到坏数据源。**返回 503** —— 黑板控制器未初始化，先看启动日志。
 
 常见 type 的 options 示例：
 
@@ -217,6 +303,57 @@ curl -sS -u elastic:$ES_PASS "http://127.0.0.1:9200/kb_chunks/_mapping" | python
 ```
 
 字段名警告：`hosts`（数组），**不是** `url`。早期 RUNBOOK §3 写错过 `url:`；本 §3a 是已验证模板。
+
+### 3b. 自动 failover（C15）
+
+当 active 数据源连续 N 次健康检查失败时，服务自动按顺序切到第一个健康的备用
+数据源：
+
+```bash
+# 1. 保存两个配置（UI 或 curl）
+# 2. 设置 failover 顺序
+curl -sS -X PUT http://127.0.0.1:8765/v1/datasources/failover \
+  -H "Content-Type: application/json" -d '{"names": ["es-prod", "mem"]}'
+# 3. 查看
+curl -sS http://127.0.0.1:8765/v1/datasources/failover
+```
+
+配置：
+
+| Env | 默认 | 说明 |
+|---|---|---|
+| `KB_FAILOVER_ENABLED` | `true` | 是否启用自动 failover |
+| `KB_FAILOVER_CONSECUTIVE_FAILURES` | `2` | 连续失败多少次触发切换 |
+
+桌面端 Settings → Failover order 可直接维护逗号分隔的顺序。切换成功后
+`active` 指针同步更新，日志 `datasource.failover`；候选全部不可用时打
+`datasource.failover_exhausted`，不会反复切回。
+
+主库恢复后会自动回切：failover 顺序第一项视为主数据源，备用数据源连续
+`KB_FAILOVER_RECOVER_CONSECUTIVE_CHECKS`（默认 3）次健康后尝试切回主数据源；
+成功打 `datasource.failover_recovered`。可用 `KB_FAILOVER_AUTO_RECOVER=false`
+关闭自动回切（保留自动 failover）。
+
+### 3c. 数据源迁移（C17）
+
+把数据从旧数据源复制到新数据源（重新 embedding 后写入）：
+
+```bash
+cd server
+
+# dump：源必须支持 dump capability（当前 memory / elasticsearch）
+python3 -m app.observability.migrate dump \
+  --type vector --options '{"backend":"memory","dim":1024}' \
+  --output /tmp/kb-dump.jsonl
+
+# load：目标数据源 + 当前 embedder（mock-hash 仅测试；生产用 openai-compat）
+python3 -m app.observability.migrate load \
+  --type elasticsearch --options '{"hosts":["http://127.0.0.1:9200"],"index":"kb_chunks","dim":1024}' \
+  --input /tmp/kb-dump.jsonl --embed openai-compat --dim 1024
+```
+
+dump 保留 `document_id / text / metadata`，load 时重新 embedding，避免模型或维度
+变化后旧向量失效。迁移量可能很大，建议停服或低峰期执行。
 
 ### 4. 导入 PDF 返回空
 

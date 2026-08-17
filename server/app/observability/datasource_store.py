@@ -67,6 +67,7 @@ class DatasourceStore:
         data.setdefault("version", self.SCHEMA_VERSION)
         data.setdefault("active", None)
         data.setdefault("configs", [])
+        data.setdefault("failover", [])
         return data
 
     def _write_locked(self, data: dict[str, Any]) -> None:
@@ -105,6 +106,24 @@ class DatasourceStore:
             if cfg.get("name") == name:
                 return dict(cfg)
         return None
+
+    def get_failover(self) -> list[str]:
+        """Return the configured failover order (valid names only)."""
+        data = self._read_locked()
+        known = {cfg.get("name") for cfg in data.get("configs", [])}
+        return [name for name in data.get("failover", []) if name in known]
+
+    def set_failover(self, names: list[str]) -> list[str]:
+        """Persist a failover order; only known config names are kept."""
+        data = self._read_locked()
+        known = {cfg.get("name") for cfg in data.get("configs", [])}
+        clean: list[str] = []
+        for name in names:
+            if name in known and name not in clean:
+                clean.append(name)
+        data["failover"] = clean
+        self._write_locked(data)
+        return clean
 
     def get(self, name: str) -> dict[str, Any] | None:
         for cfg in self._read_locked().get("configs", []):

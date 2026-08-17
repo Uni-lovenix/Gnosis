@@ -11,6 +11,42 @@ export interface HealthInfo {
   embed_backend: string;
   embed_dim: number;
   datasources: string[];
+  degraded: boolean;
+  started_at: string;
+  uptime_seconds: number;
+  embedder_backend: string | null;
+  embedder_fallback: boolean;
+  embedder_ok: boolean | null;
+  active_datasource: {
+    name: string;
+    type: string;
+    source: string;
+    ok: boolean | null;
+    latency_ms: number | null;
+    message: string | null;
+  } | null;
+  data_dir: string;
+  last_probe_at: string | null;
+}
+
+export interface HaSettings {
+  backup_auto: boolean;
+  backup_interval_hours: number;
+  backup_keep: number;
+  health_monitor: boolean;
+  health_monitor_interval_seconds: number;
+  failover_enabled: boolean;
+  failover_consecutive_failures: number;
+  failover_auto_recover: boolean;
+  failover_recover_consecutive_checks: number;
+}
+
+export interface BackupInfo {
+  name: string;
+  path: string;
+  created_at: string;
+  files: string[];
+  source: string;
 }
 
 export interface Hit {
@@ -61,6 +97,18 @@ export class ApiClient {
 
   async health(): Promise<HealthInfo> {
     return this.json("GET", "/v1/health");
+  }
+
+  async getHaSettings(): Promise<HaSettings> {
+    return this.json("GET", "/v1/settings/ha");
+  }
+
+  async listBackups(): Promise<BackupInfo[]> {
+    return this.json("GET", "/v1/backups");
+  }
+
+  async createBackup(): Promise<BackupInfo> {
+    return this.json("POST", "/v1/backups");
   }
 
   async listDatasources(): Promise<Array<{ name: string; type: string; capabilities: string[] }>> {
@@ -128,6 +176,28 @@ export class ApiClient {
     last_tested_at: string | null;
   }> {
     return this.json("PUT", `/v1/datasources/active/${encodeURIComponent(name)}`);
+  }
+
+  async switchDatasourceConfig(name: string): Promise<{
+    name: string;
+    type: string;
+    options: Record<string, unknown>;
+    saved_at: string;
+    last_tested_at: string | null;
+  }> {
+    return this.json("POST", `/v1/datasources/active/${encodeURIComponent(name)}/switch`);
+  }
+
+  async listFailover(): Promise<string[]> {
+    return this.json("GET", "/v1/datasources/failover");
+  }
+
+  async setFailover(names: string[]): Promise<string[]> {
+    return this.json("PUT", "/v1/datasources/failover", { names });
+  }
+
+  async clearFailover(): Promise<string[]> {
+    return this.json("DELETE", "/v1/datasources/failover");
   }
 
   async deactivateDatasource(): Promise<{ name: null; deleted: boolean }> {

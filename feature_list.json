@@ -1,7 +1,7 @@
 {
   "project": "灵知 (Gnosis)",
   "description": "1. 支持多数据源配置（最少支持elasticsearch，postgresql，mysql，向量数据库）\n2. 支持文件导入功能，包括：excel，word，pdf，markdown等\n3. 要能向量化数据，支持embedding模型，模型使用bge-m3\n4. 数据向量化后存入存入数据库",
-  "last_updated": "2026-08-17T00:00:00.000Z",
+  "last_updated": "2026-08-18T00:00:00.000Z",
   "status_legend": {
     "not_started": "功能还没开始做。",
     "in_progress": "这个功能是当前唯一正在进行的任务。",
@@ -314,6 +314,132 @@
       "rupPhase": "construction",
       "iteration": "c9-blackboard",
       "ownerRole": "AI 与智能体开发者 / 数据与报表开发者"
+    },
+    {
+      "id": "feat-high-availability",
+      "name": "高可用基础能力（C10）",
+      "description": "补齐个人知识库的高可用地基：request_id 请求关联追踪、依赖感知健康检查（/v1/health + /v1/health/ready）、数据目录一致性备份 CLI、桌面端降级横幅。",
+      "dependencies": [
+        "feat-blackboard-architecture"
+      ],
+      "status": "pass",
+      "evidence": "server/app/api/middleware.py 新增 X-Request-Id 中间件（生成/透传 + structlog contextvars + http.request 结构化日志）；server/app/api/health.py 新增 HealthResponse 扩展字段（degraded/started_at/uptime_seconds/embedder_backend/embedder_fallback/active_datasource/data_dir）与 GET /v1/health/ready（15s TTL 缓存，探活 datasource + embedder）；server/app/main.py 在组件装配后调用 set_runtime_state 暴露降级事实；server/app/observability/backup.py 新增 backup_data_dir + CLI（SQLite 官方 backup API 一致性快照、JSON 复制、manifest.json、KB_BACKUP_KEEP 保留策略、安全提示）；desktop/src/shared/types.ts + main/api-client.ts 扩展 HealthInfo，renderer/lib/state.ts 保存 healthInfo，renderer/App.tsx 新增 .kb-banner-degraded 降级横幅，styles.css 加样式。测试：server/tests/api/test_health_api.py 4 项（ok 快照 / 降级 / ready 全检查 / datasource 失败）、server/tests/test_backup.py 3 项（SQLite 一致性 + JSON / 跳过 temp-journal / 保留策略）、server/tests/test_request_context.py 2 项（生成与透传 / http.request 日志带 request_id）。验证：ruff 新增文件 0 errors；桌面 npm run check/lint 0 errors；npm --prefix desktop run build 通过 Vite 162.31 kB JS / 39 modules（+0.40 kB vs 161.91）；服务端 KB_MILVUS_URI=./kb_milvus_lite.db pytest 全量通过，pytest --collect-only 167 tests collected（158 + 9）。文档：docs/API.md 健康段、docs/RUNBOOK.md §2b/2c、docs/elaboration/01-architecture-baseline.md、docs/KNOWN_ISSUES.md MI-06/MI-07/MI-08、docs/construction/c10-high-availability.md + c10-high-availability-evaluation.md、evaluator-rubric.md 运行时可观测性 4 → 5、progress.md / session-handoff.md C10 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c10-high-availability",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-backup-restore",
+      "name": "备份/恢复闭环（C11）",
+      "description": "在 C10 备份 CLI 基础上补齐恢复路径：restore/list CLI、/v1/backups 列表与创建 API、桌面端 Settings Backup & Restore（停服 → 恢复 → 重启，恢复前自动留 .pre-restore）。",
+      "dependencies": [
+        "feat-high-availability"
+      ],
+      "status": "pass",
+      "evidence": "server/app/observability/backup.py 新增 list_backups（manifest 汇总，按时间倒序）与 restore_backup（仅接受 kb-backup-* 目录 + 有效 manifest；先 backup_data_dir 到 target/.pre-restore keep=3，再按 manifest 复制回目标）；CLI 新增 list / restore 子命令，无参数仍创建备份；server/app/api/backups.py 新增 GET /v1/backups + POST /v1/backups（KB_BACKUP_DIR 默认 <data_dir>/backups，不使用 HTTP restore）；server/app/config/settings.py 新增 backup_dir / backup_keep；desktop/src/shared/types.ts + main/api-client.ts + preload/index.ts + main/index.ts 新增 listBackups / createBackup / restoreBackup（restore 由主进程 server.stop() → execFile python -m app.observability.backup restore → server.start()，finally 重启兜底）；SettingsPage.tsx 新增 Backup & Restore 区块（创建 / 快照列表 / 确认恢复 / toast）；复用 .kb-configs 样式。测试：server/tests/test_backup.py +3（list 汇总 / restore 回写 + .pre-restore 保留 / 非法目录拒绝）、server/tests/api/test_backups_api.py +1（POST 201 + GET 列表）。验证：pytest 167 → 171 passed；collect-only 171 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 162.31 → 164.15 kB JS / 39 modules（+1.84 kB）。文档：docs/API.md §备份、docs/RUNBOOK.md §2c（list/restore + 桌面流程）、docs/KNOWN_ISSUES.md MI-09、docs/elaboration/01-architecture-baseline.md、docs/construction/c11-backup-restore.md + c11-backup-restore-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C11 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c11-backup-restore",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-datasource-hot-switch",
+      "name": "active 数据源热切换（C12）",
+      "description": "无需重启即可把运行中的 active 数据源切到另一份保存配置：黑板 replace_datasource 加资源锁、/v1/datasources/active/{name}/switch 端点、Settings “Switch now” 按钮。",
+      "dependencies": [
+        "feat-backup-restore"
+      ],
+      "status": "pass",
+      "evidence": "server/app/blackboard/control.py 新增 async replace_datasource（acquire datasource_write + search 锁后替换 DatasourceResource，best-effort close 旧适配器）；server/app/api/datasources.py 新增 POST /v1/datasources/active/{name}/switch（404/503/400 build/400 health 错误语义；成功后 store.activate + chunks_api.set_active_datasource + health_api.update_active_datasource + datasource.switched 日志）；server/app/api/health.py 新增 update_active_datasource（更新运行态不重置 started_at，清 readiness 缓存）；server/app/main.py 注入 controller / embedder_dim / active ds；desktop/src/shared/types.ts + api-client.ts + preload/index.ts + main/index.ts 新增 switchDatasourceConfig IPC；SettingsPage.tsx 新增 Switch now 按钮并区分 Activate（下次启动）与 Switch now（立即生效）。测试：server/tests/blackboard/test_controller.py +1（replace 后 import/search 走新数据源）、server/tests/test_datasource_configs_api.py +2（hot switch 成功持久化 / 无控制器 503）。验证：pytest 171 → 174 passed；collect-only 174 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 164.15 → 164.54 kB JS / 39 modules（+0.39 kB）。文档：docs/API.md §数据源热切换、docs/RUNBOOK.md §3、docs/KNOWN_ISSUES.md MI-10、docs/elaboration/01-architecture-baseline.md、docs/construction/c12-hot-switch.md + c12-hot-switch-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C12 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c12-hot-switch",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-auto-backup",
+      "name": "自动备份（C13）",
+      "description": "服务运行期自动备份：启动时检查一次，之后每小时按 KB_BACKUP_INTERVAL_HOURS 到期判断，复用一致性快照与保留策略；默认开启，可关闭。",
+      "dependencies": [
+        "feat-datasource-hot-switch"
+      ],
+      "status": "pass",
+      "evidence": "server/app/config/settings.py 新增 backup_auto（默认 true）与 backup_interval_hours（默认 24.0）；server/app/observability/backup.py 新增 latest_backup 与 backup_if_due（无快照创建 / 未到期跳过 / 已到期创建，now 参数可测）；server/app/main.py 新增 _auto_backup_loop（startup 启动、shutdown 取消；backup.auto_scheduled / auto_created / auto_skipped / auto_failed 结构化日志）；server/tests/conftest.py 固定 KB_BACKUP_AUTO=false 隔离测试。测试：server/tests/test_backup.py +4（latest_backup / 无快照创建 / 未到期跳过 / 已到期创建）。验证：pytest 174 → 178 passed；collect-only 178 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 164.54 kB 不变（纯后端）。文档：docs/RUNBOOK.md §2c、docs/elaboration/01-architecture-baseline.md、docs/KNOWN_ISSUES.md MI-11、docs/construction/c13-auto-backup.md + c13-auto-backup-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C13 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c13-auto-backup",
+      "ownerRole": "数据与报表开发者 / 评估者"
+    },
+    {
+      "id": "feat-health-monitor",
+      "name": "运行期健康监控（C14）",
+      "description": "后台每 30s 探活 datasource + embedder 并写入 /v1/health 快照；/ready 复用同一探活；桌面 15s 轮询自动更新降级横幅。",
+      "dependencies": [
+        "feat-auto-backup"
+      ],
+      "status": "pass",
+      "evidence": "server/app/api/health.py RuntimeState 新增 datasource_ok/datasource_message/datasource_latency_ms/embedder_ok/embedder_message/last_probe_at；update_dependency_health 写入探活结果；refresh_runtime_health 强制刷新并复用 _probe_checks；HealthResponse 新增 embedder_ok/last_probe_at，active_datasource 填充 ok/latency_ms/message；/ready 探活后 /health 立即反映；server/app/config/settings.py 新增 health_monitor（默认 true）+ health_monitor_interval_seconds（默认 30）；server/app/main.py 新增 _health_monitor_loop（startup 启动、shutdown 取消，状态变化打 health.monitor_degraded/health.monitor_recovered）；server/tests/conftest.py 固定 KB_HEALTH_MONITOR=false；desktop/src/shared/types.ts + main/api-client.ts 扩展 HealthInfo（embedder_ok/last_probe_at）；desktop/src/renderer/App.tsx 每 15s 轮询 checkHealth 并优化降级横幅文案。测试：server/tests/api/test_health_api.py +2（ready 刷新 health 快照 / 运行期 datasource 失败传播到 /health）。验证：pytest 178 → 180 passed；collect-only 180 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 164.54 → 164.72 kB JS / 39 modules（+0.18 kB）。文档：docs/API.md 健康段、docs/RUNBOOK.md §2b、docs/elaboration/01-architecture-baseline.md、docs/KNOWN_ISSUES.md MI-12、docs/construction/c14-health-monitor.md + c14-health-monitor-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C14 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c14-health-monitor",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-auto-failover",
+      "name": "健康驱动自动 failover（C15）",
+      "description": "datasources.json 支持顶层 failover 顺序；健康监控连续失败达到阈值后自动按序热切换，桌面端可管理顺序。",
+      "dependencies": [
+        "feat-health-monitor"
+      ],
+      "status": "pass",
+      "evidence": "server/app/observability/datasource_store.py 顶层 failover 默认 []、get_failover/set_failover（只保留已保存配置名、去重保序）；server/app/api/datasources.py 新增 GET/PUT/DELETE /v1/datasources/failover 与 failover_datasource()（按序 build + health 探活 + controller.replace_datasource + store.activate + chunks/health 更新；全部失败返回 None 并打 datasource.failover_exhausted）；server/app/config/settings.py 新增 failover_enabled（默认 true）+ failover_consecutive_failures（默认 2）；server/app/main.py _health_monitor_loop 统计连续 datasource 失败并在达到阈值时调用 failover_datasource（成功重置计数）；server/tests/conftest.py 固定 KB_FAILOVER_ENABLED=false；desktop/src/shared/types.ts + api-client.ts + preload/index.ts + main/index.ts 新增 listFailover/setFailover/clearFailover；SettingsPage.tsx 新增 Failover order 区块。测试：server/tests/test_datasource_store.py +3（默认空 / 过滤去重保序 / 跨重载持久化）、server/tests/test_datasource_configs_api.py +3（failover CRUD / 自动切换成功 / 无候选保持 active）。验证：pytest 180 → 186 passed；collect-only 186 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 164.72 → 165.98 kB JS / 39 modules（+1.26 kB）。文档：docs/API.md §failover、docs/RUNBOOK.md §3b、docs/elaboration/01-architecture-baseline.md、docs/KNOWN_ISSUES.md MI-13、docs/construction/c15-auto-failover.md + c15-auto-failover-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C15 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c15-auto-failover",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-failover-recover",
+      "name": "failover 恢复回切（C16）",
+      "description": "主数据源恢复健康后自动从备用切回：failover 顺序第一项视为主数据源，备用连续健康达到阈值触发 recover_primary。",
+      "dependencies": [
+        "feat-auto-failover"
+      ],
+      "status": "pass",
+      "evidence": "server/app/api/datasources.py 新增 recover_primary()（failover 第一项=主数据源；active 已是主/无候选/health 失败返回 None；成功 replace_datasource + store.activate + chunks/health 更新 + datasource.failover_recovered 日志）；server/app/config/settings.py 新增 failover_auto_recover（默认 true）+ failover_recover_consecutive_checks（默认 3）；server/app/main.py _health_monitor_loop 新增连续健康计数，达到阈值调用 recover_primary；server/tests/conftest.py 固定 KB_FAILOVER_AUTO_RECOVER=false。测试：server/tests/test_datasource_configs_api.py +2（备用切回主 / 已为主不动作）。验证：pytest 186 → 188 passed；collect-only 188 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 165.98 kB 不变（纯后端）。文档：docs/API.md §failover 回切、docs/RUNBOOK.md §3b、docs/elaboration/01-architecture-baseline.md、docs/KNOWN_ISSUES.md MI-14、docs/construction/c16-failover-recover.md + c16-failover-recover-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C16 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c16-failover-recover",
+      "ownerRole": "数据与报表开发者 / 评估者"
+    },
+    {
+      "id": "feat-data-migration",
+      "name": "数据源迁移 dump/load（C17）",
+      "description": "新增 DataSource.dump_all（dump capability）与 migrate CLI：dump 全量 text/metadata，load 重新 embedding 后写入目标数据源。",
+      "dependencies": [
+        "feat-failover-recover"
+      ],
+      "status": "pass",
+      "evidence": "server/app/datasources/base.py 新增 dump_all（默认 NotSupportedError）与 dump capability 约定；server/app/datasources/vector_db_adapter.py memory backend 实现 dump_all + capabilities 增 dump；server/app/datasources/elasticsearch_adapter.py 实现 dump_all（match_all + 全量 text 不分页截断）+ capabilities 增 dump；server/app/observability/migrate.py 新增 dump_chunks（JSONL document_id/text/metadata，分页）/ load_chunks（批量 embedding + Chunk + ds.add）与 dump/load CLI。测试：server/tests/test_migrate.py 2 项（roundtrip 后新库可搜索 / 无 capability 拒绝）、server/tests/datasources/test_elasticsearch_adapter.py +1（dump_all 返回全量文本 + capabilities 含 dump）。验证：pytest 188 → 191 passed；collect-only 191 tests；ruff 0 errors（含清理 math/BaseModel 未用导入）；desktop check/lint 0 errors；Vite 165.98 kB 不变（纯后端）。文档：docs/RUNBOOK.md §3c、docs/elaboration/01-architecture-baseline.md、docs/KNOWN_ISSUES.md MI-15、docs/construction/c17-data-migration.md + c17-data-migration-evaluation.md、evaluator-rubric.md、progress.md / session-handoff.md C17 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "construction",
+      "iteration": "c17-data-migration",
+      "ownerRole": "数据与报表开发者 / 评估者"
+    },
+    {
+      "id": "feat-ha-settings-overview",
+      "name": "HA 配置总览（G18）",
+      "description": "只读暴露当前生效的高可用参数：GET /v1/settings/ha + 桌面端 HA Configuration 总览；同时作为 H2 政策生效后首个 G 类迭代验证自验流程。",
+      "dependencies": [
+        "feat-data-migration"
+      ],
+      "status": "pass",
+      "evidence": "server/app/api/ha.py 新增 GET /v1/settings/ha（返回 backup_auto/backup_interval_hours/backup_keep/health_monitor/health_monitor_interval_seconds/failover_enabled/failover_consecutive_failures/failover_auto_recover/failover_recover_consecutive_checks，来自 get_settings 当前生效值）；server/app/main.py 注册 ha router；desktop/src/shared/types.ts + main/api-client.ts + preload/index.ts + main/index.ts 新增 getHaSettings；SettingsPage.tsx 新增 HA Configuration 只读表。测试：server/tests/api/test_ha_settings_api.py 2 项（当前生效值完整 / env 覆盖响应变化）。验证：pytest 191 → 193 passed；collect-only 193 tests；ruff 0 errors；desktop check/lint 0 errors；Vite 165.98 → 167.56 kB JS / 39 modules（+1.58 kB）。H2 政策首个 G 类自验：协议先落盘 docs/construction/g18-ha-settings-overview.md、progress.md 留数值、feature_list evidence 非空、双层可观测性通过（http.request 覆盖新端点）；evaluator-rubric.md 过程可观测性 4 → 5。文档：docs/API.md §settings/ha、docs/RUNBOOK.md §2b、feature_list 30/30 → 31/31、progress.md / session-handoff.md G18 记录。",
+      "testedAt": "2026-08-18T00:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "ha-settings-overview",
+      "ownerRole": "数据与报表开发者 / 多端体验开发者"
     }
   ]
 }

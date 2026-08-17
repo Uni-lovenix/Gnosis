@@ -70,6 +70,7 @@ FastAPI 路由 → BlackboardController（议程 + 调度器 + 资源管理）
 | `server/pipeline/` | 编排：解析→切片→embedding→入库 | 不直连 UI |
 | `server/blackboard/` | 黑板条目、事件总线、知识源注册、议程/调度/资源管理 | 不实现具体业务 |
 | `server/blackboard/sources/` | 文件解析、切片、embedding、写入、检索、浏览等知识源 | 不直接调用其他知识源 |
+| `server/observability/backup.py` | 数据目录一致性备份（SQLite 官方 backup API + JSON 复制 + 保留策略） | 不做自动定时调度 |
 
 ## 4. 接口契约
 
@@ -114,7 +115,13 @@ class Embedder(Protocol):
 | POST | `/v1/search` | `{query, top_k, datasource, filter}` | `{hits: [{id, score, text, metadata}]}` |
 | GET | `/v1/datasources` | — | `[{name, type, status}]` |
 | POST | `/v1/datasources/test` | `{type, config}` | `{ok, latency_ms, message}` |
+| POST | `/v1/datasources/active/{name}/switch` | — | `DatasourceConfigResponse`（热切换运行中数据源） |
+| GET/PUT/DELETE | `/v1/datasources/failover` | — | `{names: [...]}`（failover 顺序） |
+| GET | `/v1/backups` | — | `[{name, path, created_at, files, source}]` |
+| POST | `/v1/backups` | — | 201 `BackupInfo` |
 | GET | `/v1/health` | — | `{status, version, embedder, datasources}` |
+| GET | `/v1/health/ready` | — | `{status, degraded, checks:[{name,ok,...}]}` |
+| GET | `/v1/settings/ha` | — | 当前生效的 HA 参数（备份/健康监控/failover，只读） |
 | GET | `/v1/tasks/{id}` | — | `{status, progress, error}` |
 
 ### 4.4 IPC 契约（Electron preload）
@@ -163,9 +170,18 @@ user → renderer 输入 query
 ## 6. 进程与可靠性
 
 - Electron 主进程拉起 Python 子进程，记录 PID；每 5s 心跳；3 次失败自动重启。
+- 每个 HTTP 请求带 `X-Request-Id`，日志经 structlog contextvars 关联；健康快照暴露 `degraded / embedder_fallback / active_datasource`。
 - Python 服务启动时打开 SQLite（任务表 + 元数据），崩溃时按 task_id 续跑。
 - 任务状态机：`queued → running → done | failed`，失败任务可手动重试。
 - 关闭顺序：renderer 先关闭 → main 通知 Python 优雅退出 → main 退出。
+- `python3 -m app.observability.backup` 对 `datasources.json` 与 `tasks.db` 做一致性快照，默认保留最近 7 份。
+- 桌面端 Backup & Restore：`POST /v1/backups` 创建快照；恢复时主进程先 `server.stop()` → 执行 `backup restore` → `server.start()`，避免覆盖正在使用的 SQLite；恢复前自动保留 `.pre-restore`。
+- active 数据源支持热切换：`BlackboardController.replace_datasource` 在 `datasource_write` + `search` 资源锁内替换共享 datasource；`POST /v1/datasources/active/{name}/switch` 构建 + 探活 + 持久化 + 更新健康快照。
+- 服务运行期自动备份（默认开启）：启动时 `backup_if_due` 检查一次，之后每小时检查，`KB_BACKUP_INTERVAL_HOURS` 控制最小间隔，关闭时取消后台任务。
+- 运行期健康监控（默认开启）：后台每 30s 探活 datasource + embedder，结果写入 `/v1/health` 快照；`/v1/health/ready` 复用同一探活函数；状态变化打 `health.monitor_degraded` / `health.monitor_recovered`。
+- 健康驱动自动 failover：`datasources.json` 顶层 `failover` 顺序；监控连续失败达到阈值后调用 `failover_datasource()`，按序 build + 探活 + 热切换 + 更新 active 指针；全部失败打 `datasource.failover_exhausted`。
+- failover 恢复回切：failover 顺序第一项视为主数据源；备用数据源连续健康达到阈值后 `recover_primary()` 自动切回主数据源，成功打 `datasource.failover_recovered`。
+- 数据源迁移：`DataSource.dump_all`（`dump` capability）导出全量 text/metadata，`python3 -m app.observability.migrate dump/load` 重新 embedding 后写入目标；memory / ES 支持。
 
 ## 7. 技术选型
 

@@ -32,6 +32,16 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8765
     data_dir: str = Field(default="~/.kb-server")
+    backup_dir: str | None = None
+    backup_keep: int = 7
+    backup_auto: bool = True
+    backup_interval_hours: float = 24.0
+    health_monitor: bool = True
+    health_monitor_interval_seconds: int = 30
+    failover_enabled: bool = True
+    failover_consecutive_failures: int = 2
+    failover_auto_recover: bool = True
+    failover_recover_consecutive_checks: int = 3
 
     # Default is Ollama bge-m3 (openai-compat). Run `bash scripts/start_server_ollama.sh`
     # to spin up Ollama before launching this server.

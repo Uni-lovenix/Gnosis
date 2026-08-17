@@ -2,10 +2,127 @@
 
 ## Current State
 
-**Last Updated:** 2026-08-17T00:00:00.000Z
-**Active Feature:** C9 黑板体系落地（生产默认导入/检索/浏览已接入黑板控制器）
+**Last Updated:** 2026-08-18T00:00:00.000Z
+**Active Feature:** G18 HA 配置总览（只读 API + 桌面 Settings 总览；H2 政策首个 G 类自验）
 **Current RUP Phase:** 移交后增量（transition 已通过）
-**Current Iteration:** G1-G7 全 ✅ + H1/H2 ✅ + **C9 (黑板体系落地) ✅**
+**Current Iteration:** G1-G7 全 ✅ + H1/H2 ✅ + C9-C17 ✅ + **G18 (HA 配置总览) ✅**
+
+## 实测基线（2026-08-18 G18）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **193 tests collected**（191 + G18 新增 2） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **193 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **167.56 kB JS / 39 modules / 431ms**（165.98 → 167.56，+1.58 kB） |
+| `feature_list.json` | **31/31 pass**（新增 `feat-ha-settings-overview`，evidence 非空） |
+
+## 实测基线（2026-08-18 C17）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **191 tests collected**（188 + C17 新增 3） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **191 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors（含清理 math/BaseModel 未用导入） |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **165.98 kB JS / 39 modules / 426ms**（纯后端改动，体积不变） |
+| `feature_list.json` | **30/30 pass**（新增 `feat-data-migration`，evidence 非空） |
+
+## 实测基线（2026-08-18 C16）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **188 tests collected**（186 + C16 新增 2） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **188 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **165.98 kB JS / 39 modules / 438ms**（纯后端改动，体积不变） |
+| `feature_list.json` | **29/29 pass**（新增 `feat-failover-recover`，evidence 非空） |
+
+## 实测基线（2026-08-18 C15）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **186 tests collected**（180 + C15 新增 6） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **186 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **165.98 kB JS / 39 modules / 451ms**（164.72 → 165.98，+1.26 kB） |
+| `feature_list.json` | **28/28 pass**（新增 `feat-auto-failover`，evidence 非空） |
+
+## 实测基线（2026-08-18 C14）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **180 tests collected**（178 + C14 新增 2） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **180 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **164.72 kB JS / 39 modules / 437ms**（164.54 → 164.72，+0.18 kB） |
+| `feature_list.json` | **27/27 pass**（新增 `feat-health-monitor`，evidence 非空） |
+
+## 实测基线（2026-08-18 C13）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **178 tests collected**（174 + C13 新增 4） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **178 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **164.54 kB JS / 39 modules / 414ms**（后端改动，体积不变） |
+| `feature_list.json` | **26/26 pass**（新增 `feat-auto-backup`，evidence 非空） |
+
+## 实测基线（2026-08-18 C12）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **174 tests collected**（171 + C12 新增 3） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **174 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **164.54 kB JS / 39 modules / 436ms**（164.15 → 164.54，+0.39 kB） |
+| `feature_list.json` | **25/25 pass**（新增 `feat-datasource-hot-switch`，evidence 非空） |
+
+## 实测基线（2026-08-18 C11）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **171 tests collected**（167 + C11 新增 4） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **171 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **164.15 kB JS / 39 modules / 396ms**（162.31 → 164.15，+1.84 kB） |
+| `feature_list.json` | **24/24 pass**（新增 `feat-backup-restore`，evidence 非空） |
+
+## 实测基线（2026-08-18 C10）
+
+所有数值本轮实跑取得，非历史抄录：
+
+| 项 | 值 |
+| --- | --- |
+| `pytest --collect-only` | **167 tests collected**（158 + C10 新增 9） |
+| `KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` | **167 passed**（/opt/anaconda3/bin/python3） |
+| `ruff check` 新增/改动模块 | 0 errors |
+| `npm --prefix desktop run check` / `lint` | 0 errors |
+| `npm --prefix desktop run build` | Vite **162.31 kB JS / 39 modules / 403ms**（161.91 → 162.31，+0.40 kB） |
+| `feature_list.json` | **23/23 pass**（新增 `feat-high-availability`，evidence 非空） |
 
 ## 实测基线（2026-08-17 C9）
 
@@ -117,31 +234,95 @@
   - 重评：`evaluator-rubric.md` 过程可观测性 3 → **4**（不给 5 的两条理由：政策尚未被任何 G 类迭代实践检验；G1-G4 协议与 G1-G7 评估报告仍不存在，追认是有记录的主动选择但工件确实缺失）；交接准备度 4 → 5；总分 4.5 → **4.75/5**；结论 Revise → **Accept**。`quality-document.md` 两个 B 回升，Overall A- → **A**。
   - 验证：`npm run verify` 144 passed ×2；`bash init.sh` 全绿；`feature_list.json` 与原始版本逐字段比对——原 19 项内容完全一致，仅新增 H1/H2 两项。
 - [x] **C9 黑板体系落地**：生产默认路径从线性 pipeline 切换为黑板控制器。新增 `server/app/blackboard/`（Blackboard / Patch / 事件总线 / 词汇表 / 注册表 / Agenda / Scheduler / ResourceManager / BlackboardProjector）和 `server/app/blackboard/sources/` 7 个知识源（ParseFile / ChunkText / ChunkEmbedding / QueryEmbedding / WriteDatasource / SemanticRetrieval / Browse）。`main.py` 默认创建控制器并注册知识源；files/search/chunks API 在存在控制器时走黑板路径，旧 pipeline 保留兼容路径；`tests/blackboard/` 新增 13 项（条目/事件/乐观并发/注册校验/冲突/资源/导入检索浏览/投影/知识源隔离）。文档：`docs/elaboration/01-architecture-baseline.md` 补黑板结构，`docs/construction/c9-blackboard-architecture.md` + `c9-blackboard-evaluation.md`。验证：`pytest tests/` 158 collected（沙箱 Milvus skip 8，实际 150 passed）；`ruff check` 新增模块 0 errors；desktop check 0 errors；Vite build 161.91 kB。
+- [x] **C10 高可用基础能力**：补齐个人知识库的高可用地基。
+  - 请求关联：新增 `server/app/api/middleware.py`，每个请求生成/透传 `X-Request-Id`，structlog contextvars 绑定 `request_id / method / path`，结束时打 `http.request`（含 status_code / duration_ms）；所有响应头带 `X-Request-Id`。
+  - 健康检查：`GET /v1/health` 扩展 `degraded / started_at / uptime_seconds / embedder_backend / embedder_fallback / active_datasource / data_dir`；新增 `GET /v1/health/ready`（15s TTL 缓存，探活 datasource + embedder，任一失败 status=degraded）；`main.py` 组件装配后 `health_api.set_runtime_state(...)` 暴露降级事实。
+  - 一致性备份：新增 `server/app/observability/backup.py` + CLI `python3 -m app.observability.backup`；SQLite 用官方 backup API 在线快照，JSON 复制，写 `manifest.json`，`KB_BACKUP_KEEP`（默认 7）保留策略；文档明确备份含凭证、需同等权限保护。
+  - 桌面降级提示：`HealthInfo` 扩展；`useAppState` 保存 `healthInfo`；`App.tsx` 渲染 `.kb-banner-degraded`（embedder fallback / 无 active 数据源 / 数据源不可用）。
+  - 测试：`server/tests/api/test_health_api.py` 4 项、`server/tests/test_backup.py` 3 项、`server/tests/test_request_context.py` 2 项，共 +9。
+  - 验证：167 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 162.31 kB（+0.40 kB）；`feature_list.json` 22/22 → 23/23。
+  - 文档：`docs/construction/c10-high-availability.md` 协议 + `c10-high-availability-evaluation.md` 评估（Accept）；`docs/API.md` 健康段；`docs/RUNBOOK.md` §2b/2c；`docs/KNOWN_ISSUES.md` MI-06/MI-07/MI-08；`evaluator-rubric.md` 运行时可观测性 4 → 5。
+- [x] **C11 备份/恢复闭环**：把 C10 的“能备份”推进到“可一键恢复”。
+  - backup 模块：新增 `list_backups()`（manifest 汇总、按时间倒序）与 `restore_backup()`（仅接受 `kb-backup-*` + 有效 manifest；先 `backup_data_dir` 到 `<target>/.pre-restore/` keep=3，再按 manifest 复制回目标）；CLI 新增 `list` / `restore <path>` 子命令，无参数仍创建备份。
+  - API：`server/app/api/backups.py` 新增 `GET /v1/backups`（列表）与 `POST /v1/backups`（创建，201）；`Settings` 新增 `backup_dir` / `backup_keep`；恢复不放 HTTP，避免覆盖正在使用的 SQLite。
+  - 桌面：`shared/types` / `api-client` / `preload` / `main` 新增 `listBackups` / `createBackup` / `restoreBackup`；恢复由主进程 `server.stop()` → `execFile python -m app.observability.backup restore` → `server.start()`（finally 重启兜底）；`SettingsPage` 新增 Backup & Restore 区块（创建 / 列表 / 确认恢复 / toast）。
+  - 测试：`test_backup.py` +3（list 汇总 / restore 回写 + `.pre-restore` / 非法目录拒绝）、`test_backups_api.py` +1（POST 201 + GET 列表）。
+  - 验证：171 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 164.15 kB（+1.84 kB）；`feature_list.json` 23/23 → 24/24。
+  - 文档：`docs/construction/c11-backup-restore.md` 协议 + `c11-backup-restore-evaluation.md` 评估（Accept）；`docs/API.md` §备份；`docs/RUNBOOK.md` §2c；`docs/KNOWN_ISSUES.md` MI-09；`docs/elaboration/01-architecture-baseline.md`。
+- [x] **C12 active 数据源热切换**：把“active 切换只影响下次启动”升级为可热切换。
+  - 黑板：`BlackboardController.replace_datasource` 用 `datasource_write` + `search` 资源锁串行化切换，替换 `DatasourceResource` 并 best-effort 关闭旧适配器。
+  - API：`POST /v1/datasources/active/{name}/switch` 构建 + 探活（health 非 ok 拒绝）→ replace → `store.activate` 持久化 → `chunks_api.set_active_datasource` → `health_api.update_active_datasource` → `datasource.switched` 日志。
+  - 健康：`update_active_datasource` 更新运行态、清 readiness 缓存、不重置 `started_at`。
+  - 桌面：`switchDatasourceConfig` IPC + Settings “Switch now” 按钮；Activate 保留“下次启动”语义。
+  - 测试：`test_controller.py` +1（replace 后 import/search 走新数据源）、`test_datasource_configs_api.py` +2（switch 成功持久化 / 无控制器 503）。
+  - 验证：174 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 164.54 kB（+0.39 kB）；`feature_list.json` 24/24 → 25/25。
+  - 文档：`docs/construction/c12-hot-switch.md` 协议 + `c12-hot-switch-evaluation.md` 评估（Accept）；`docs/API.md` §数据源热切换；`docs/RUNBOOK.md` §3；`docs/KNOWN_ISSUES.md` MI-10。
+- [x] **C13 自动备份**：把“手动/CLI 备份”升级为服务运行期自动备份。
+  - settings：`backup_auto`（默认 true）+ `backup_interval_hours`（默认 24.0）。
+  - backup 模块：`latest_backup` + `backup_if_due`（无快照创建 / 未到期跳过 / 已到期创建，`now` 可注入测试）。
+  - main：`_auto_backup_loop` 启动即检查一次，之后每小时检查；shutdown 取消；`backup.auto_scheduled/auto_created/auto_skipped/auto_failed` 结构化日志。
+  - 测试：`test_backup.py` +4；conftest 固定 `KB_BACKUP_AUTO=false`。
+  - 验证：178 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 164.54 kB 不变；`feature_list.json` 25/25 → 26/26。
+  - 文档：`docs/construction/c13-auto-backup.md` 协议 + `c13-auto-backup-evaluation.md` 评估（Accept）；`docs/RUNBOOK.md` §2c；`docs/KNOWN_ISSUES.md` MI-11。
+- [x] **C14 运行期健康监控**：让 `/v1/health` 反映实时依赖健康，而不是只有启动快照。
+  - health：RuntimeState 新增 `datasource_ok / datasource_message / datasource_latency_ms / embedder_ok / embedder_message / last_probe_at`；`update_dependency_health` 写探活结果；`refresh_runtime_health` 复用 `_probe_checks`；`/ready` 探活后 `/health` 立即反映。
+  - 后台：settings 新增 `health_monitor`（默认 true）+ `health_monitor_interval_seconds`（默认 30）；main `_health_monitor_loop` 启动/关闭管理，状态变化打 `health.monitor_degraded` / `health.monitor_recovered`；conftest 固定关闭。
+  - 桌面：`HealthInfo` 扩展 `embedder_ok` / `last_probe_at`；App 每 15s 轮询 `checkHealth`；横幅文案区分 embedder fallback / datasource 不可用 / 依赖降级。
+  - 测试：`test_health_api.py` +2（ready 刷新快照 / 运行期 datasource 失败传播）。
+  - 验证：180 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 164.72 kB（+0.18 kB）；`feature_list.json` 26/26 → 27/27。
+  - 文档：`docs/construction/c14-health-monitor.md` 协议 + `c14-health-monitor-evaluation.md` 评估（Accept）；`docs/API.md` 健康段；`docs/RUNBOOK.md` §2b；`docs/KNOWN_ISSUES.md` MI-12。
+- [x] **C15 健康驱动自动 failover**：把“看到降级”升级为“自动切备用”。
+  - 存储：`datasources.json` 顶层 `failover`（默认 []），`get_failover` / `set_failover` 只保留已保存配置名、去重保序。
+  - API：`GET/PUT/DELETE /v1/datasources/failover`；`failover_datasource()` 按序 build + health 探活 → `replace_datasource` → `store.activate` → 更新 chunks/health；全部失败返回 None + `datasource.failover_exhausted`。
+  - 监控：settings 新增 `failover_enabled`（默认 true）+ `failover_consecutive_failures`（默认 2）；`_health_monitor_loop` 连续失败达到阈值触发，成功重置计数。
+  - 桌面：`listFailover` / `setFailover` / `clearFailover` IPC + Settings Failover order 区块。
+  - 测试：`test_datasource_store.py` +3、`test_datasource_configs_api.py` +3。
+  - 验证：186 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 165.98 kB（+1.26 kB）；`feature_list.json` 27/27 → 28/28。
+  - 文档：`docs/construction/c15-auto-failover.md` 协议 + `c15-auto-failover-evaluation.md` 评估（Accept）；`docs/API.md` §failover；`docs/RUNBOOK.md` §3b；`docs/KNOWN_ISSUES.md` MI-13。
+- [x] **C16 failover 恢复回切**：让 failover 形成“主故障 → 切备用 → 主恢复 → 切回”完整生命周期。
+  - API：`recover_primary()` 以 failover 顺序第一项为主数据源；active 已为主 / 主候选 health 失败返回 None；成功 replace + activate + 更新 chunks/health + `datasource.failover_recovered` 日志。
+  - 监控：settings 新增 `failover_auto_recover`（默认 true）+ `failover_recover_consecutive_checks`（默认 3）；`_health_monitor_loop` 连续健康计数达到阈值触发，调用后重置。
+  - 测试：`test_datasource_configs_api.py` +2；conftest 固定关闭。
+  - 验证：188 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 165.98 kB 不变；`feature_list.json` 28/28 → 29/29。
+  - 文档：`docs/construction/c16-failover-recover.md` 协议 + `c16-failover-recover-evaluation.md` 评估（Accept）；`docs/API.md` §failover 回切；`docs/RUNBOOK.md` §3b；`docs/KNOWN_ISSUES.md` MI-14。
+- [x] **C17 数据源迁移 dump/load**：让数据能在数据源之间复制，failover/换库不再是空库。
+  - 抽象：`DataSource.dump_all` 默认 NotSupportedError，capability `dump`；memory / ES 实现（ES 全量文本不分页截断）。
+  - CLI：`python3 -m app.observability.migrate dump/load`；dump 写 JSONL（document_id/text/metadata），load 批量重新 embedding 后 `ds.add`。
+  - 测试：`test_migrate.py` 2 项（roundtrip 可搜索 / 无 capability 拒绝）+ ES dump_all 1 项。
+  - 验证：191 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 165.98 kB 不变；`feature_list.json` 29/29 → 30/30。
+  - 文档：`docs/construction/c17-data-migration.md` 协议 + `c17-data-migration-evaluation.md` 评估（Accept）；`docs/RUNBOOK.md` §3c；`docs/KNOWN_ISSUES.md` MI-15。
+- [x] **G18 HA 配置总览**：H2 政策生效后的首个 G 类迭代，验证“自验四项最低要求”与四条升级触发条件可判定。
+  - API：`GET /v1/settings/ha` 返回自动备份 / 健康监控 / failover 的当前生效参数（只读）。
+  - 桌面：Settings 新增 HA Configuration 总览表；`getHaSettings` IPC。
+  - 测试：`test_ha_settings_api.py` 2 项（当前生效值完整 / env 覆盖响应变化）。
+  - 验证：193 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 167.56 kB（+1.58 kB）；`feature_list.json` 30/30 → 31/31。
+  - 自验：协议先落盘（`docs/construction/g18-ha-settings-overview.md`）、progress 留数值、feature evidence 非空、双层可观测性通过；`evaluator-rubric.md` 过程可观测性 4 → 5。
+  - 文档：`docs/API.md` §settings/ha；`docs/RUNBOOK.md` §2b。
 
 ### What's In Progress
 
-- 无。G7 / H1 / H2 均已收尾。所有 KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 均收敛；仅 KI-01 / KI-08 / KI-10 仍 open（低-中严重度、不阻塞个人生产使用）。
+- 无。G18 已收尾。所有 KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 均收敛；仅 KI-01 / KI-08 / KI-10 仍 open（低-中严重度、不阻塞个人生产使用）。
 
 ### What's Next
 
-**过程欠账 —— H2 后仅剩一项待验证**
+**过程侧已闭环**
 
-1. 下一轮 G 类迭代收尾时，验证 H2 政策的"自验四项最低要求"与四条升级触发条件是否**真的可判定**。这是过程可观测性从 4 升 5 的唯一前置条件。规则写得清楚 ≠ 规则可执行。
+1. H2 政策的"自验四项最低要求"与四条升级触发条件已由 **G18** 实践验证：协议先行、数值可复核、evidence 非空、双层可观测性全部成立；过程可观测性 4 → 5。
 
 **功能候选**
 
 2. （成本最低、闭环最完整）Settings → "Test connection" 成功后自动调 `mark_tested` 写 `last_tested_at`，UI 加 ✓ 标记。**H1 已核实：`datasource_store.py:188` 有实现 + `test_datasource_store.py:111` 有单测，但全仓库无任何 API/UI 调用方 —— 属有测试无调用方的死代码。**
-3. （对应运行时可观测性 4/5 的缺口）引入 `request_id` 并 `bind_contextvars`，让已挂载的 `merge_contextvars` 真正生效，把 search / browse 路径也纳入关联。目前唯一的跨阶段关联键是 `task_id`，且只覆盖 import 路径。
-4. KI-01（PDF OCR）或 KI-08（Word 图片 / 批注）或 KI-10（better-sqlite3 arm64 cross-compile）。已不再是阻塞项，按用户实际遭遇频率决定先后。
-5. CI 引入 docker compose 服务化 Milvus，让 conftest 默认 URI 指向 `http://milvus:19530`，1:1 套件 CI 自动跑。
-6. （可选，G5 后续）将指数退避提炼成 `app/utils/backoff.py` 通用工具。**H1 已核实该文件不存在**，目前仅 `openai_compat.py` 内联。
+3. KI-01（PDF OCR）或 KI-08（Word 图片 / 批注）或 KI-10（better-sqlite3 arm64 cross-compile）。已不再是阻塞项，按用户实际遭遇频率决定先后。
+4. CI 引入 docker compose 服务化 Milvus，让 conftest 默认 URI 指向 `http://milvus:19530`，1:1 套件 CI 自动跑。
+5. （可选，G5 后续）将指数退避提炼成 `app/utils/backoff.py` 通用工具。**H1 已核实该文件不存在**，目前仅 `openai_compat.py` 内联。
+6. （G18 后续）把 HA 参数做成可编辑持久化（当前只读展示，配置仍通过 `KB_*` env 设置）。
 
-> 注：上述第 2/3 项若实施，需先按 `docs/PROCESS.md` §升级触发条件自查——第 3 项不改契约走自验；第 2 项若改动 IPC 协议则需升级为独立评估。
+> 注：上述第 2 项若改动 IPC 协议则命中升级触发条件，需升级为独立评估。
 
 **条件触发**
 
-7. （若数据增长触发 `scan_limit_hit` 高频告警）C9 单独开迭代做数据迁移工具（dump / load CLI），突破 C8 收敛边界。
-8. （可选）`active` 切换运行时热生效：当前只影响下次启动；要做需引入 datasource 池 + 信号量，避免正在跑的 import 半途切换。
+7. （可选）多 active 数据源加权路由；当前 failover 是线性顺序 + 自动回切。
+8. （可选）迁移 UI：把 dump/load 接入桌面端，或增加 Milvus `dump_all`。
 
 ## Blockers / Risks
 
@@ -149,11 +330,20 @@
 - KI-06 已由 G3 收敛：真实 bge-m3 经 Ollama OpenAI 兼容接口跑通，`eval:ollama` 10/10。CI 仍走 mock 路径（9/10）维持门禁，本地 sentence-transformers 直载路径仍未装权重（属备用路径，不阻塞）。
 - C7 / KI-07：本机 docker mirror 对 `milvusdb/milvus:v2.4.10-standalone` 返回 403；Milvus Lite (`./kb_milvus_lite.db`) 1:1 兜底。
 - G1：goal.md 假设的 `src/backend` `src/frontend` 目录在本仓库不存在；功能 100% 已覆盖，详见 `docs/goal/01-mapping.md`。
-- G2：active 切换只影响下次 server 启动（设计如此）；用户改 active 后需要重启桌面端才生效（避免正在跑的 pipeline 半途切换）。这一边界在 RUNBOOK §2 与 SettingsPage 帮助文本里都写明了。
+- G2 的 Activate 仍只持久化、下次启动生效；C12 提供 “Switch now” 热切换，C15 提供健康驱动自动 failover，均无需重启。
 
 ## Decisions Made
 
 - RUP 四阶段 + 迭代协议管理；5 个 construction 迭代 + 1 个 transition + 3 个补充收敛迭代（C6 / C7 / C8）+ 7 个 goal 迭代（G1 映射 / G2 数据源 CRUD / G3 Ollama bge-m3 / G4 真实 ES / G5 KI-03 重试退避 / G6 上传进度可观测性 / G7 ES 数据浏览页）+ 2 个 harness 迭代（H1 文档同步 / **H2 过程政策确立**）。
+- **C10 分类**：命中 `docs/PROCESS.md` 升级触发条件中的“触及安全边界”（备份复制含凭证的 `datasources.json` + 扩展文件系统访问范围），因此按 C 类出独立评估报告，不走 G 类自验。
+- **C11 分类与取舍**：恢复向数据目录写回含凭证文件并停/启子进程，命中安全边界，按 C 类评估。restore 不放 HTTP，由桌面主进程停服后执行；恢复前自动留 `.pre-restore`，误恢复可回退。
+- **C12 分类与取舍**：热切换新增运行时数据源语义，按 C 类评估。保留 Activate 的“下次启动”语义，新增显式 Switch now；切换要求 health ok 并把黑板资源锁作为并发边界。
+- **C13 分类与取舍**：自动备份新增服务后台调度，按 C 类评估。跟随服务运行、启动即检查 + 每小时检查、默认开启；测试通过 conftest 关闭避免后台任务。
+- **C14 分类与取舍**：运行期健康监控新增后台探活与健康快照，按 C 类评估。后台探活与 `/ready` 共用同一 checks；不做自动 failover，降级交给桌面横幅与用户热切换。
+- **C15 分类与取舍**：自动 failover 新增配置文件字段与自动切换行为，按 C 类评估。failover 顺序放 `datasources.json` 顶层（缺失兼容）；连续失败阈值默认 2；切换成功后不自动切回，避免 flapping。
+- **C16 分类与取舍**：恢复回切新增自动替换运行态行为，按 C 类评估。failover 顺序第一项=主数据源；默认自动回切但要求连续 3 次健康，避免抖动；`KB_FAILOVER_AUTO_RECOVER=false` 可只保留自动 failover。
+- **C17 分类与取舍**：数据迁移新增 DataSource 能力与 CLI，按 C 类评估。dump 不保留向量，load 用当前 embedder 重嵌入；`dump_all` 与 `list_chunks` 分离，避免迁移拿截断文本。
+- **G18 自验结论**：作为 H2 政策生效后首个 G 类迭代，四项最低要求全部可判定、四条升级触发条件均未命中；过程可观测性 4 → 5，总评 5/5。
 - **H2 迭代分类政策**：C 类必须出独立评估报告；G/H 类走自验但必须有迭代协议 + 四项最低要求；四条客观可判定的升级触发条件把高风险改动挡在自验之外。选"定政策"而非"回溯补 7 份评估报告"是用户决策——理由是回溯写作的信息全部来自 `progress.md`，边际价值低于确立规则。
 - **H2 记录口径**：测试数一律以根级 `npm run test:unit` 为准（带 `KB_MILVUS_URI=./kb_milvus_lite.db`，Milvus 8 项会全跑）。此前 G7 记的 136 是 Milvus skip 口径，导致口径漂移。
 - Python 服务默认走 mock embedder；缺 sentence-transformers 自动降级（事件 `embedder.fallback_to_mock`）。
@@ -163,9 +353,9 @@
 - KI-05：Python 后端**不**打包进 Electron 产物，运行时通过 `KB_PYTHON` 解析。
 - KI-06：CI 仍跑 mock 路径；真实 BGE-M3 路径按需在本机执行。
 - KI-07：`_MilvusBackend` 显式 VARCHAR 主键 schema；conftest 通过 `KB_MILVUS_URI` 同时支持 http(s) standalone 与本地 Lite 路径。
-- KI-02：**只**打日志 + 文档化迁移路径，**不**内置 dump / load CLI；warning 而非 exception 与现有截断语义一致；`capabilities()` `scan_limit_risk` 声明风险。
+- KI-02：warning 而非 exception 与现有截断语义一致；`capabilities()` `scan_limit_risk` 声明风险。C17 已补 dump/load CLI，数据可迁移到 pgvector / Milvus / ES。
 - G1：根级 `package.json` 聚合 npm scripts（不动 desktop 的 start/build/dev）；桌面端 `lint` 约定即 tsc 类型检查；pytest 走 Lite 路径跑满 89 项（原 89 → 现 113）。
-- G2：数据源配置文件选 **JSON**（用户可 `cat` / `git` 共享 / 备份）；原子写 `os.replace` 避免半截文件；损坏文件自动 `.corrupt` 备份后启动。**active 切换只影响下次启动**（运行时热切换风险见 KI-02 C8 设计原则）；未知 type / 缺依赖由 build() 抛错，UI / API 透传为 400 给清晰排错信息。
+- G2：数据源配置文件选 **JSON**（用户可 `cat` / `git` 共享 / 备份）；原子写 `os.replace` 避免半截文件；损坏文件自动 `.corrupt` 备份后启动。C12 热切换与 C15 failover 已把“只能下次启动生效”收敛为 Activate 独有语义；未知 type / 缺依赖由 build() 抛错，UI / API 透传为 400 给清晰排错信息。
 - G4：真实 ES 接入不引入 docker compose；用户在跑 ES 9.5.0 + 凭证就够，写入 `datasources.json` 走 `_build_default_components()` 启动加载路径；G2 的 v1 schema 已经包含 elasticsearch type，适配器无需改动；ES 9.x 默认 `bbq_hnsw` 自动优于 8.x 的 `hnsw`，mapping 字段名从 `url` 改为 `hosts`（适配器要求）。
 - G5：KI-03 重试退避只放在 `openai-compat`（最常见的瞬时错误来源），不改 `Embedder` 抽象契约；其它 embedder（`mock-hash` 无网络、`bge-m3` 本地推理）不背此复杂度。引入辅助 attr `kb_status_code` / `kb_retryable` 而不是新的异常类型，让外层 `try/except EmbedderError` 保持稳定。`max_retries=0` 等价禁用重试，给排错留逃生口。
 - G6：`IndexingPipeline.on_progress` 签名从 `Callable[[float], None]` 升级到 `Callable[[ProgressEvent], None]` —— 破坏性变更，但**唯一生产调用点**是 `_run_import`，已同步更新；pipeline 单测同步升级。`TaskStore` v1 schema 迁移自动完成（`ALTER TABLE ... ADD COLUMN stage` 用 try/except OperationalError 兜底重复添加；`PRAGMA user_version=1` 标版本），老 `tasks.db` 不丢数据。事件 ring buffer 32 条，嵌入 `TaskResponse.events` 让渲染端免一次额外 IPC；`/events?since_id=` 备用端点留给未来 live-tail 订阅者。`stage` 默认 `queued`，旧服务器负载 fallback 兼容（前端 `t.stage ?? "queued"`）。`pipeline.stage` structlog 事件在每个 stage 边界打一次，附带 task_id + stage + progress + message 字段。
@@ -173,7 +363,7 @@
 
 ## Notes for Next Session
 
-- 当前仓库 `feature_list.json` 全部 `pass`（**21/21**，H1 + H2 新增），且 evidence 字段全部非空。
+- 当前仓库 `feature_list.json` 全部 `pass`（**31/31**，含 C9-C17 + G18），且 evidence 字段全部非空。
 - 下次启动：`bash init.sh` → 阅读 README → **PROCESS §迭代分类与评估策略**（开新迭代前必读，决定要不要出评估报告）→ KNOWN_ISSUES → `docs/goal/01-mapping.md` → RUNBOOK §2 数据源配置管理。
 - 任何接口变更必须同步 `docs/elaboration/01-architecture-baseline.md` 与 `docs/API.md`。
 - `feature_list.json` 描述统一使用中文弯引号 “…”；新增条目沿用。

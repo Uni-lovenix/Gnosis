@@ -34,12 +34,55 @@ export interface ActiveDatasourceResponse {
   config: DatasourceConfigRecord | null;
 }
 
+export interface ActiveDatasourceHealth {
+  name: string;
+  type: string;
+  source: string;
+  ok: boolean | null;
+  latency_ms: number | null;
+  message: string | null;
+}
+
 export interface HealthInfo {
   status: string;
   version: string;
   embed_backend: string;
   embed_dim: number;
   datasources: string[];
+  degraded: boolean;
+  started_at: string;
+  uptime_seconds: number;
+  embedder_backend: string | null;
+  embedder_fallback: boolean;
+  embedder_ok: boolean | null;
+  active_datasource: ActiveDatasourceHealth | null;
+  data_dir: string;
+  last_probe_at: string | null;
+}
+
+export interface HaSettings {
+  backup_auto: boolean;
+  backup_interval_hours: number;
+  backup_keep: number;
+  health_monitor: boolean;
+  health_monitor_interval_seconds: number;
+  failover_enabled: boolean;
+  failover_consecutive_failures: number;
+  failover_auto_recover: boolean;
+  failover_recover_consecutive_checks: number;
+}
+
+export interface BackupInfo {
+  name: string;
+  path: string;
+  created_at: string;
+  files: string[];
+  source: string;
+}
+
+export interface RestoreResult {
+  restored: number;
+  pre_restore: string;
 }
 
 export interface Hit {
@@ -154,6 +197,10 @@ export interface BrowseOpts {
  */
 export interface KBAPI {
   health(): Promise<HealthInfo>;
+  getHaSettings(): Promise<HaSettings>;
+  listBackups(): Promise<BackupInfo[]>;
+  createBackup(): Promise<BackupInfo>;
+  restoreBackup(name: string): Promise<RestoreResult>;
   listDatasources(): Promise<DatasourceInfo[]>;
   testDatasource(cfg: DatasourceConfig): Promise<{ ok: boolean; latency_ms: number | null; message: string | null }>;
   listDatasourceConfigs(): Promise<DatasourceConfigRecord[]>;
@@ -161,6 +208,10 @@ export interface KBAPI {
   deleteDatasourceConfig(name: string): Promise<{ name: string; deleted: boolean }>;
   getActiveDatasource(): Promise<ActiveDatasourceResponse>;
   activateDatasourceConfig(name: string): Promise<DatasourceConfigRecord>;
+  switchDatasourceConfig(name: string): Promise<DatasourceConfigRecord>;
+  listFailover(): Promise<string[]>;
+  setFailover(names: string[]): Promise<string[]>;
+  clearFailover(): Promise<string[]>;
   deactivateDatasource(): Promise<{ name: null; deleted: boolean }>;
   importFile(path: string): Promise<ImportResponse>;
   search(query: string, opts?: { top_k?: number; datasource?: string }): Promise<Hit[]>;

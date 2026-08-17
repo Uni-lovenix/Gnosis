@@ -11,21 +11,21 @@
 
 | 维度 | 评级 | 验证状态 | Agent 可读性 | 测试稳定性 | 关键缺口 | 上次更新 |
 |------|------|---------|-------------|-----------|---------|---------|
-| 构建与编译 | A | server pytest 144 passed；desktop 3 tsconfig 0 errors + Vite build 158.61 kB | A | A | 无 | 2026-08-08T00:00:00.000Z |
-| 功能完整性 | A | 4 数据源 / 4 解析器 / embedding / 检索 / 桌面端 / 评测集 / goal.md 映射 / 数据源 CRUD / 上传进度 / ES 浏览页 | A | A | 无（KI-06 已由 G3 Ollama 路径收敛） | 2026-08-08T00:00:00.000Z |
+| 构建与编译 | A | server pytest 193 passed；desktop 3 tsconfig 0 errors + Vite build 167.56 kB | A | A | 无 | 2026-08-18T00:00:00.000Z |
+| 功能完整性 | A | 4 数据源 / 4 解析器 / embedding / 检索 / 桌面端 / 评测集 / goal.md 映射 / 数据源 CRUD / 上传进度 / ES 浏览页 / 黑板体系 / 高可用基础能力 / 备份恢复闭环 / active 热切换 / 自动备份 / 运行期健康监控 / 自动 failover / 恢复回切 / 数据迁移 / HA 配置总览 | A | A | 无（KI-06 已由 G3 Ollama 路径收敛） | 2026-08-18T00:00:00.000Z |
 | 需求与团队配置 | A | 7 个角色匹配 4 个 construction 责任区块 + 7 个 goal 迭代 | A | A | 无 | 2026-08-08T00:00:00.000Z |
-| RUP 过程管理 | A | inception / elaboration / construction(×5) / transition 全部闭环 + C6-C8 补充收敛 + G1-G7 goal 迭代 | A | A | 无 | 2026-08-08T00:00:00.000Z |
-| 协作与评估闭环 | A | C1-C7 共 7 份评估报告均 ≥4.75/5；G/H 系列走自验，`docs/PROCESS.md` §迭代分类与评估策略 已明文规定其适用性与论据 | A | A | 无（H1 提出的欠账已由 H2 政策关闭） | 2026-08-08T00:00:00.000Z |
+| RUP 过程管理 | A | inception / elaboration / construction(×5) / transition 全部闭环 + C6-C8 补充收敛 + G1-G18 goal 迭代 + C9-C17 高可用基础能力 | A | A | 无 | 2026-08-18T00:00:00.000Z |
+| 协作与评估闭环 | A | C1-C7 + C9-C17 评估报告均通过；G18 首次实践 G 类自验；`docs/PROCESS.md` §迭代分类与评估策略 已明文规定其适用性与论据 | A | A | 无（H1 提出的欠账已由 H2 政策关闭） | 2026-08-18T00:00:00.000Z |
 | 规则地图与角色文件 | A | AGENTS.md / CLAUDE.md 入口；agents/ 单角色文件 | A | A | 无 | 2026-08-08T00:00:00.000Z |
 | 导出 Harness | A | 13 个 harness 文件 + 根级 package.json（聚合 scripts） | A | A | 无 | 2026-08-08T00:00:00.000Z |
-| 验证与证据 | A | feature_list 21/21 pass 且 evidence 全部非空（H2 修复 5 处重复键）；progress / quality / evaluator / clean / goal-mapping 全部更新到实测证据 | A | A | 无 | 2026-08-08T00:00:00.000Z |
+| 验证与证据 | A | feature_list 31/31 pass 且 evidence 全部非空（H2 修复 5 处重复键）；progress / quality / evaluator / clean / goal-mapping 全部更新到实测证据 | A | A | 无 | 2026-08-18T00:00:00.000Z |
 | 文档与交接 | A | README / API / RUNBOOK / KNOWN_ISSUES / transition / goal/01-mapping / PROCESS 完整且状态准确 | A | A | 无 | 2026-08-08T00:00:00.000Z |
-| 运行时可观测性 | A | structlog JSON；19 类结构化事件全部在 `server/app/` 实测可查；`/v1/health` 健康检查；desktop 心跳 + 自动重启 2 项 node 测试通过 | A | A | 无追踪能力（无 request_id / trace_id；`merge_contextvars` 已挂载但无 bind 调用） | 2026-08-08T00:00:00.000Z |
-| 过程可观测性 | A- | C1-C7 协议 + 评估成对齐全；G5/G6/G7 有协议；H2 确立三类迭代的评估策略 + 四条升级触发条件 + 记录口径约定 | A | A | 政策尚未被任何 G 类迭代实践检验；G1-G4 协议与 G1-G7 评估报告仍不存在（已显式追认，非遗漏） | 2026-08-08T00:00:00.000Z |
+| 运行时可观测性 | A | structlog JSON；结构化事件 + `http.request` 请求关联；`/v1/health` 降级快照 + `/v1/health/ready` 依赖探活；desktop 心跳 + 自动重启 2 项 node 测试通过；一致性备份 CLI | A | A | 无 | 2026-08-18T00:00:00.000Z |
+| 过程可观测性 | A | C1-C7 + C9-C17 协议 + 评估齐全；G18 首次实践 G 类自验；H2 政策 + 记录口径约定已闭环 | A | A | 无 | 2026-08-18T00:00:00.000Z |
 
 ## Overall Grade: A
 
-> H1 曾因 goal 系列过程工件欠账把两项评为 B。H2 确立明文政策（`docs/PROCESS.md` §迭代分类与评估策略）消除了规则缺位这一根因，两项回升。过程可观测性保留 A-：政策本身尚未经一轮 G 类迭代检验。
+> H1 曾因 goal 系列过程工件欠账把两项评为 B。H2 确立明文政策消除规则缺位；G18 首次完成 G 类自验，政策可执行性已闭环，过程可观测性升至 A。
 
 ## 当前快照
 
@@ -35,22 +35,22 @@
 3. embedding 模型 bge-m3
 4. 向量化后存入数据库
 - 当前 RUP 阶段：移交后增量（transition 已通过）
-- 当前迭代：H2 过程政策确立（已收尾）
+- 当前迭代：G18 HA 配置总览（已收尾）
 - 智能体数量：7
 - 已生成文件：13 个 harness 文件 + 根级 `package.json`（聚合 scripts）+ docs/{inception,elaboration,construction,transition,goal}/ + server/ + desktop/
 
 ## 验证命令
 
-> 下列数值为 2026-08-08 实测，非历史抄录。
+> 下列数值为 2026-08-18 实测，非历史抄录。
 
 - `bash init.sh`：harness 校验通过；自动跑 `npm run check` + `npm test` + `npm run build`。
 - `npm run verify`：聚合 check + lint + test:unit + test:integration。
 - `npm run check` / `npm run lint`：等价 `cd desktop && tsc --noEmit -p tsconfig.json`，0 errors。
-- `npm run test:unit`：等价 `cd server && KB_MILVUS_URI=./kb_milvus_lite.db pytest -p no:warnings tests/`，**144 passed in 5.21s**。
-- `npm run test:integration`：等价 `cd server && KB_MILVUS_URI=./kb_milvus_lite.db pytest -p no:warnings`，**144 passed in 4.68s**。
+- `npm run test:unit`：等价 `cd server && KB_MILVUS_URI=./kb_milvus_lite.db pytest -p no:warnings tests/`，**193 passed**（G18 实测）。
+- `npm run test:integration`：等价 `cd server && KB_MILVUS_URI=./kb_milvus_lite.db pytest -p no:warnings`，**193 passed**（G18 实测）。
 - `npm run eval:mock`：等价 `cd server && PYTHONPATH=. python3 eval/run_eval.py --embedder mock`，**9/10 (90%)**。
 - `npm run eval`（默认 Ollama bge-m3）：等价 `--embedder openai-compat`，需先起 Ollama；G3 记录 10/10 (100%)。
-- `npm run build`：等价 `cd desktop && npm run build`，**Vite 158.61 kB JS + 7.00 kB CSS / 38 模块 / 685ms**，tsc 0 errors。
+- `npm run build`：等价 `cd desktop && npm run build`，**Vite 164.54 kB JS / 39 模块 / 436ms**，tsc 0 errors。
 - `cd desktop && node --test scripts/test-server-manager.cjs`：**2 passed in 30.8s**（含 3 次 ping 失败后重启的真实等待）。
 
 ## Evidence of Quality
@@ -59,7 +59,7 @@
 
 - 类型检查与构建：3 个桌面端 tsconfig + Vite build 全部通过；根级 `package.json` 不引入新依赖，仅聚合 scripts。
 - 项目自有验证脚本：`init.sh` 校验全部 harness 文件存在；检测到根级 `package.json` 后自动跑 check/test/build。
-- Harness 初始化：`feature_list.json` **21/21** 全部 `pass`，且 `evidence` 字段全部非空（H2 修复了 5 处重复 `evidence` 键——真实内容在前、空串在后，按 JSON 语义被后者覆盖，导致证据对解析器不可见）。
+- Harness 初始化：`feature_list.json` **31/31** 全部 `pass`，且 `evidence` 字段全部非空（H2 修复了 5 处重复 `evidence` 键——真实内容在前、空串在后，按 JSON 语义被后者覆盖，导致证据对解析器不可见）。
 
 ### Runtime
 
@@ -70,8 +70,17 @@
 ### Observability
 
 - 结构化日志覆盖：structlog + JSON 输出（含 timestamp、level、event、message）。
-- 关键服务事件证据（下列事件名均在 `server/app/` 下 grep 实测命中，非文档声称）：`kb-server.startup`、`vector.ready`、`embedder.ready`、`embedder.fallback_to_mock`、`embedder.retry`、`datasource.from_saved`、`datasource.active_load_failed`、`datasource.config_load_failed`、`datasource.init_failed`、`datasource.default_in_memory`、`mysql.adapter.small_dataset_only`、`mysql.adapter.scan_limit_hit`、`mysql.schema.ready`、`postgres.schema.ready`、`elasticsearch.index.created`、`elasticsearch.aggregate_failed`、`pipeline.stage`、`chunks.browse_failed`、`chunks.browse_not_supported`。
-- 健康检查：`server/app/api/health.py` 暴露 `/v1/health`，返回 `embed_backend` 等运行时事实。
+- 关键服务事件证据（下列事件名均在 `server/app/` 下 grep 实测命中，非文档声称）：`kb-server.startup`、`vector.ready`、`embedder.ready`、`embedder.fallback_to_mock`、`embedder.retry`、`datasource.from_saved`、`datasource.active_load_failed`、`datasource.config_load_failed`、`datasource.init_failed`、`datasource.default_in_memory`、`mysql.adapter.small_dataset_only`、`mysql.adapter.scan_limit_hit`、`mysql.schema.ready`、`postgres.schema.ready`、`elasticsearch.index.created`、`elasticsearch.aggregate_failed`、`pipeline.stage`、`chunks.browse_failed`、`chunks.browse_not_supported`、`http.request`、`health.readiness_degraded`。
+- 请求关联：`server/app/api/middleware.py` 生成/透传 `X-Request-Id`，structlog contextvars 绑定，`http.request` 日志携带同一 id。
+- 健康检查：`/v1/health` 返回降级快照；`/v1/health/ready` 探活 datasource + embedder（15s TTL）。
+- 备份/恢复：`python3 -m app.observability.backup`（SQLite 官方 backup API + JSON + manifest + 保留策略）；`list` / `restore` CLI；`/v1/backups`；桌面 Backup & Restore 一键恢复（停服 → restore → 重启，`.pre-restore` 回退）。
+- 热切换：`POST /v1/datasources/active/{name}/switch` + 黑板资源锁 + health 门槛；桌面 Settings “Switch now”。
+- 自动备份：服务启动即检查 + 每小时 `backup_if_due`（默认开启），`backup.auto_*` 日志。
+- 运行期健康监控：后台 30s 探活写入 `/v1/health` 快照；桌面 15s 轮询更新降级横幅；`health.monitor_degraded` / `recovered` 日志。
+- 自动 failover：`datasources.json` 顶层 failover 顺序；连续失败阈值触发自动热切换；桌面 Settings Failover order。
+- failover 恢复回切：failover 顺序第一项=主数据源；主库恢复连续健康自动切回，`datasource.failover_recovered` 日志。
+- 数据迁移：`dump_all` + migrate CLI；dump 全量 text/metadata，load 重新 embedding 后写入目标。
+- HA 配置总览：`GET /v1/settings/ha` + Settings HA Configuration 只读表。
 - 任务级可观测性（G6）：`TaskStage` 7 态 + `TaskEvent` ring buffer 32 + `GET /v1/files/tasks/{id}/events?since_id=`；渲染端阶段 tag + 折叠事件日志。
 - 进程可观测性：desktop `server-manager.ts` 5s 心跳 + 3 次失败自动重启，2 项 node 测试实测通过。
 
@@ -86,11 +95,11 @@
 | --- | --- |
 | `clean-state-checklist.md` | 全部项已具备（类型/构建/测试/harness/架构边界/goal-mapping） |
 | `evaluator-rubric.md` | C1-C7 共 7 次评估 ≥4.75/5 通过；G/H 系列按 `docs/PROCESS.md` 政策走自验；总分 4.75/5，结论 Accept |
-| `feature_list.json` | 21/21 features = pass，evidence 全部非空 |
+| `feature_list.json` | 31/31 features = pass，evidence 全部非空 |
 | `eval/run_eval.py --embedder mock` | 9/10 通过 |
-| `pytest -p no:warnings` | 144 passed（unit + integration） |
+| `pytest -p no:warnings` | 193 passed（unit + integration） |
 | `tsc --noEmit` × 3 | 0 errors |
-| `vite build` | 成功（158.61 kB JS / 7.00 kB CSS / 38 模块） |
+| `vite build` | 成功（167.56 kB JS / 39 模块） |
 | `node --test scripts/test-server-manager.cjs` | 2 passed |
 | `npm run verify` | 全部通过 |
 | `docs/goal/01-mapping.md` | goal.md → 实际栈映射三层表 |

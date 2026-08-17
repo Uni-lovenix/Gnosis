@@ -14,16 +14,24 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.api import chunks as chunks_api
+from app.api import health as health_api
 from app.datasources.base import DatasourceConfig
 from app.datasources.factory import build
 from app.datasources.registry import all_types
 from app.observability.datasource_store import DatasourceStore
+from app.observability.logging import get_logger
+
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/v1/datasources", tags=["datasources"])
 
 
 # Process-wide store; set by main.py at startup.
 _store: DatasourceStore | None = None
+_controller = None
+_embedder_dim = 64
+_active_ds = None
 
 
 def set_store(store: DatasourceStore) -> None:
@@ -35,6 +43,21 @@ def _store_required() -> DatasourceStore:
     if _store is None:
         raise HTTPException(status_code=503, detail="datasource store not initialized")
     return _store
+
+
+def set_controller(controller) -> None:
+    global _controller
+    _controller = controller
+
+
+def set_embedder_dim(dim: int) -> None:
+    global _embedder_dim
+    _embedder_dim = int(dim)
+
+
+def set_active_datasource(ds) -> None:
+    global _active_ds
+    _active_ds = ds
 
 
 # ---- Catalog ---------------------------------------------------------------
@@ -118,6 +141,121 @@ class DatasourceConfigUpsert(BaseModel):
 class ActiveResponse(BaseModel):
     name: str | None = None
     config: DatasourceConfigResponse | None = None
+
+
+class FailoverResponse(BaseModel):
+    names: list[str]
+
+
+class FailoverUpsert(BaseModel):
+    names: list[str]
+
+
+async def failover_datasource() -> dict | None:
+    """Try configured failover candidates and hot-switch to the first healthy one.
+
+    Returns ``{"from": name, "to": name}`` on success or ``None`` when no
+    candidate is available/healthy. Used by the health monitor.
+    """
+    store = _store_required()
+    if _controller is None:
+        return None
+    active_cfg = store.get_active()
+    active_name = active_cfg["name"] if active_cfg is not None else None
+    candidates = [name for name in store.get_failover() if name != active_name]
+    for name in candidates:
+        cfg = store.get(name)
+        if cfg is None:
+            continue
+        ds = None
+        try:
+            ds = build(
+                DatasourceConfig(
+                    name=cfg["name"],
+                    type=cfg["type"],
+                    options={**cfg.get("options", {}), "dim": _embedder_dim},
+                )
+            )
+            h = await ds.health()
+            if not h.ok:
+                await ds.close()
+                continue
+        except Exception:  # noqa: BLE001
+            if ds is not None:
+                try:
+                    await ds.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            continue
+
+        await _controller.replace_datasource(ds)
+        store.activate(name)
+        chunks_api.set_active_datasource(ds)
+        health_api.update_active_datasource(ds, source="active")
+        log.warning(
+            "datasource.failover",
+            from_name=active_name,
+            to_name=name,
+            type=cfg["type"],
+        )
+        return {"from": active_name, "to": name}
+    log.warning("datasource.failover_exhausted", candidates=candidates)
+    return None
+
+
+async def recover_primary() -> dict | None:
+    """Switch back to the first failover candidate when it is healthy again.
+
+    Returns ``{"from": name, "to": name}`` on success or ``None`` when the
+    primary is already active, unavailable, or unhealthy.
+    """
+    store = _store_required()
+    if _controller is None:
+        return None
+    order = store.get_failover()
+    if not order:
+        return None
+    primary_name = order[0]
+    active_cfg = store.get_active()
+    active_name = active_cfg["name"] if active_cfg is not None else None
+    if active_name == primary_name:
+        return None
+    cfg = store.get(primary_name)
+    if cfg is None:
+        return None
+
+    ds = None
+    try:
+        ds = build(
+            DatasourceConfig(
+                name=cfg["name"],
+                type=cfg["type"],
+                options={**cfg.get("options", {}), "dim": _embedder_dim},
+            )
+        )
+        h = await ds.health()
+        if not h.ok:
+            await ds.close()
+            return None
+    except Exception:  # noqa: BLE001
+        if ds is not None:
+            try:
+                await ds.close()
+            except Exception:  # noqa: BLE001
+                pass
+        return None
+
+    await _controller.replace_datasource(ds)
+    store.activate(primary_name)
+    chunks_api.set_active_datasource(ds)
+    health_api.update_active_datasource(ds, source="active")
+    log.info(
+        "datasource.failover_recovered",
+        from_name=active_name,
+        to_name=primary_name,
+        type=cfg["type"],
+    )
+    return {"from": active_name, "to": primary_name}
 
 
 @router.get("/configs", response_model=list[DatasourceConfigResponse])
@@ -228,6 +366,83 @@ async def set_active(name: str) -> DatasourceConfigResponse:
         saved_at=cfg.get("saved_at", ""),
         last_tested_at=cfg.get("last_tested_at"),
     )
+
+
+@router.post("/active/{name}/switch", response_model=DatasourceConfigResponse)
+async def switch_active_now(name: str) -> DatasourceConfigResponse:
+    """Hot-swap the running active datasource without restarting the server.
+
+    Unlike ``PUT /active/{name}`` (which only persists the pointer for the
+    next start), this endpoint builds and probes the adapter, waits for any
+    in-flight write/search on the blackboard, swaps the shared resource, and
+    then persists the pointer so the next start stays consistent.
+    """
+    store = _store_required()
+    cfg = store.get(name)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail=f"no such datasource config: {name}")
+    if _controller is None:
+        raise HTTPException(
+            status_code=503,
+            detail="blackboard controller not initialized; cannot hot-switch",
+        )
+
+    ds = None
+    try:
+        ds = build(
+            DatasourceConfig(
+                name=cfg["name"],
+                type=cfg["type"],
+                options={**cfg.get("options", {}), "dim": _embedder_dim},
+            )
+        )
+        h = await ds.health()
+        if not h.ok:
+            raise HTTPException(
+                status_code=400,
+                detail=f"datasource health check failed: {h.message}",
+            )
+    except HTTPException:
+        if ds is not None:
+            await ds.close()
+        raise
+    except Exception as e:  # noqa: BLE001
+        if ds is not None:
+            await ds.close()
+        raise HTTPException(status_code=400, detail=f"invalid config: {e}") from e
+
+    await _controller.replace_datasource(ds)
+    saved = store.activate(name)
+    chunks_api.set_active_datasource(ds)
+    health_api.update_active_datasource(ds, source="active")
+    log.info("datasource.switched", name=cfg["name"], type=cfg["type"])
+    return DatasourceConfigResponse(
+        name=saved["name"],
+        type=saved["type"],
+        options=saved.get("options", {}),
+        saved_at=saved.get("saved_at", ""),
+        last_tested_at=saved.get("last_tested_at"),
+    )
+
+
+@router.get("/failover", response_model=FailoverResponse)
+async def get_failover() -> FailoverResponse:
+    store = _store_required()
+    return FailoverResponse(names=store.get_failover())
+
+
+@router.put("/failover", response_model=FailoverResponse)
+async def set_failover(req: FailoverUpsert) -> FailoverResponse:
+    store = _store_required()
+    names = store.set_failover(req.names)
+    return FailoverResponse(names=names)
+
+
+@router.delete("/failover", response_model=FailoverResponse)
+async def clear_failover() -> FailoverResponse:
+    store = _store_required()
+    store.set_failover([])
+    return FailoverResponse(names=[])
 
 
 @router.delete("/active")

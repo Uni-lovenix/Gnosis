@@ -8,15 +8,74 @@ Base URL: `http://127.0.0.1:8765`
 
 ### `GET /v1/health`
 
-返回 200 表示服务存活。
+返回 200 表示服务进程存活。`degraded: true` 表示 embedder 已回退或 active
+数据源未绑定，但服务仍可响应（桌面端会显示降级横幅）。
 
 ```json
 {
   "status": "ok",
   "version": "0.1.0",
-  "embed_backend": "bge-m3",
+  "embed_backend": "openai-compat",
   "embed_dim": 1024,
-  "datasources": ["elasticsearch", "mysql", "postgresql", "vector"]
+  "datasources": ["elasticsearch", "mysql", "postgresql", "vector"],
+  "degraded": false,
+  "started_at": "2026-08-18T00:00:00+00:00",
+  "uptime_seconds": 12.345,
+  "embedder_backend": "openai-compat",
+  "embedder_fallback": false,
+  "embedder_ok": true,
+  "active_datasource": {
+    "name": "es-prod",
+    "type": "elasticsearch",
+    "source": "active",
+    "ok": true,
+    "latency_ms": 6.13,
+    "message": "9.5.0"
+  },
+  "data_dir": "/Users/paul/.kb-server",
+  "last_probe_at": "2026-08-18T00:00:12+00:00"
+}
+```
+
+服务默认每 30s（`KB_HEALTH_MONITOR_INTERVAL_SECONDS`）后台探活一次 datasource
+与 embedder，结果写入上述快照；`/v1/health/ready` 每次探活也会刷新同一快照。
+后台监控可用 `KB_HEALTH_MONITOR=false` 关闭。
+
+### `GET /v1/health/ready`
+
+带 15s TTL 缓存的依赖就绪探针。对当前 active datasource 和 embedder 各做
+一次健康检查；返回 `checks` 列表，任一失败时 `status="degraded"`。
+
+```json
+{
+  "status": "ready",
+  "degraded": false,
+  "checks": [
+    {"name": "server", "ok": true},
+    {"name": "datasource", "ok": true, "latency_ms": 6.13, "message": "9.5.0"},
+    {"name": "embedder", "ok": true, "latency_ms": 18.2, "message": "probe ok"}
+  ]
+}
+```
+
+所有响应头都会带 `X-Request-Id`（调用方未传时由服务端生成），同一请求期间
+后端日志中的 `http.request` / 业务事件共享该 id。
+
+### `GET /v1/settings/ha`
+
+返回当前生效的高可用参数（来自 `KB_*` 环境变量，只读）：
+
+```json
+{
+  "backup_auto": true,
+  "backup_interval_hours": 24.0,
+  "backup_keep": 7,
+  "health_monitor": true,
+  "health_monitor_interval_seconds": 30,
+  "failover_enabled": true,
+  "failover_consecutive_failures": 2,
+  "failover_auto_recover": true,
+  "failover_recover_consecutive_checks": 3
 }
 ```
 
@@ -111,6 +170,43 @@ Base URL: `http://127.0.0.1:8765`
 错误：
 - `404` —— 找不到该 name 的保存配置。
 
+#### `POST /v1/datasources/active/{name}/switch`
+
+**热切换**当前运行中的 active datasource，无需重启服务：
+
+- 构建并探活新适配器（health 非 ok 时 400，不切换）；
+- 等待黑板 `datasource_write` / `search` 资源锁，避免打断在飞写入/检索；
+- 替换共享 datasource 后持久化 active 指针（下次启动保持一致）；
+- 更新健康快照，返回与 `PUT /active/{name}` 相同的 `DatasourceConfigResponse`。
+
+错误：
+- `400` —— build 失败或 health 检查未通过；
+- `404` —— 找不到该 name 的保存配置；
+- `503` —— 黑板控制器未初始化。
+
+#### `GET /v1/datasources/failover`
+
+返回配置的 failover 顺序（`datasources.json` 顶层 `failover` 字段，缺失视为空）。
+
+```json
+{"names": ["es-prod", "mem"]}
+```
+
+#### `PUT /v1/datasources/failover`
+
+请求 `{"names": ["es-prod", "mem"]}`。服务端只保留已保存配置名、去重保序，返回实际保存结果。
+
+#### `DELETE /v1/datasources/failover`
+
+清空 failover 顺序，返回 `{"names": []}`。
+
+> 自动 failover：健康监控连续 `KB_FAILOVER_CONSECUTIVE_FAILURES`（默认 2）次
+> 探到 active datasource 不健康时，按该顺序尝试第一个健康候选并热切换；全部
+> 失败不切换并打 `datasource.failover_exhausted`。
+> 自动回切：failover 顺序第一项视为主数据源；备用数据源连续
+> `KB_FAILOVER_RECOVER_CONSECUTIVE_CHECKS`（默认 3）次健康后，服务会尝试切回
+> 主数据源，成功打 `datasource.failover_recovered`。
+
 #### `DELETE /v1/datasources/active`
 
 清空 active；服务下次启动回退到 in-memory vector。
@@ -118,6 +214,33 @@ Base URL: `http://127.0.0.1:8765`
 ```json
 {"name": null, "deleted": true}
 ```
+
+## 备份
+
+### `GET /v1/backups`
+
+列出 `KB_BACKUP_DIR`（默认 `<data_dir>/backups`）下的快照，按时间倒序。
+
+```json
+[
+  {
+    "name": "kb-backup-20260818-003000",
+    "path": "/Users/paul/.kb-server/backups/kb-backup-20260818-003000",
+    "created_at": "2026-08-18T00:30:00Z",
+    "files": ["datasources.json", "tasks.db"],
+    "source": "/Users/paul/.kb-server"
+  }
+]
+```
+
+### `POST /v1/backups`
+
+创建一份新快照（SQLite 走官方 backup API，JSON 直接复制），返回 201 与同上的
+`BackupInfo`。
+
+> 恢复不提供 HTTP 端点：恢复会替换正在使用的 SQLite，必须由桌面主进程先停
+> Python 服务，再执行 `python3 -m app.observability.backup restore <path>`，
+> 完成后重新启动服务。桌面端 Settings → Backup & Restore 已封装该流程。
 
 ## 文件
 

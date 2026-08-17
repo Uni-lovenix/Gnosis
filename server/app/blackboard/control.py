@@ -14,6 +14,9 @@ from app.blackboard.registry import KnowledgeSource, KnowledgeSourceRegistry
 from app.blackboard.resources import DatasourceResource
 from app.blackboard.vocabulary import EntryKind
 from app.observability.models import new_id
+from app.observability.logging import get_logger
+
+log = get_logger(__name__)
 
 
 def _now() -> str:
@@ -150,6 +153,23 @@ class BlackboardController:
 
     def set_datasource(self, datasource) -> None:
         self.datasource_resource.set(datasource)
+
+    async def replace_datasource(self, datasource) -> None:
+        """Swap the active datasource without interrupting in-flight work.
+
+        Waits for write/search resource locks, then swaps the shared resource.
+        The previous datasource is closed best-effort after the swap.
+        """
+        previous = self.datasource_resource.datasource
+        async with self.resources.acquire(["datasource_write", "search"]):
+            self.datasource_resource.set(datasource)
+        if previous is not None and previous is not datasource:
+            close = getattr(previous, "close", None)
+            if close is not None:
+                try:
+                    await close()
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("datasource.close_failed", name=previous.name, reason=str(exc))
 
     async def submit_import(
         self,

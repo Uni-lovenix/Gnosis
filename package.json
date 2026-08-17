@@ -13,8 +13,10 @@
     "eval:mock": "cd server && PYTHONPATH=. python3 eval/run_eval.py --embedder mock",
     "eval:bgem3": "cd server && PYTHONPATH=. python3 eval/run_eval.py --embedder bge-m3",
     "server:ollama": "bash scripts/start_server_ollama.sh",
+    "backup": "cd server && python3 -m app.observability.backup",
     "build": "npm --prefix desktop run build",
     "dev": "npm --prefix desktop run dev",
+    "app": "bash scripts/start_app.sh",
     "start": "npm --prefix desktop run start",
     "verify": "npm run check && npm run lint && npm run test:unit && npm run test:integration"
   }

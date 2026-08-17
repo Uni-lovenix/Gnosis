@@ -6,6 +6,7 @@ tests remain isolated even if ``main.app`` is reused by another test.
 """
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -13,8 +14,6 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import datasources as datasources_api
-from app.api import search as search_api
-from app.main import _build_default_components
 from app.observability.datasource_store import DatasourceStore
 
 
@@ -114,6 +113,165 @@ def test_active_round_trip(client_with_store: TestClient) -> None:
     assert client_with_store.get("/v1/datasources/active").json()["name"] is None
 
 
+def test_switch_active_hot_swaps_without_restart(client_with_store, monkeypatch):
+    class _FakeController:
+        def __init__(self) -> None:
+            self.datasource = None
+
+        async def replace_datasource(self, ds):
+            self.datasource = ds
+
+    fake = _FakeController()
+    monkeypatch.setattr(datasources_api, "_controller", fake)
+    monkeypatch.setattr(datasources_api, "_embedder_dim", 32)
+    monkeypatch.setattr(datasources_api.chunks_api, "set_active_datasource", lambda ds: None)
+    monkeypatch.setattr(
+        datasources_api.health_api,
+        "update_active_datasource",
+        lambda ds, source="active": None,
+    )
+
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "v", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    r = client_with_store.post("/v1/datasources/active/v/switch")
+    assert r.status_code == 200, r.text
+    assert fake.datasource is not None
+    assert fake.datasource.name == "v"
+    assert client_with_store.get("/v1/datasources/active").json()["name"] == "v"
+
+
+def test_switch_active_requires_controller(client_with_store, monkeypatch):
+    monkeypatch.setattr(datasources_api, "_controller", None)
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "v", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    r = client_with_store.post("/v1/datasources/active/v/switch")
+    assert r.status_code == 503
+    assert "controller not initialized" in r.json()["detail"]
+
+
+def test_failover_crud(client_with_store: TestClient) -> None:
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "a", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "b", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+
+    assert client_with_store.get("/v1/datasources/failover").json()["names"] == []
+
+    r = client_with_store.put("/v1/datasources/failover", json={"names": ["b", "a", "b", "ghost"]})
+    assert r.status_code == 200
+    assert r.json()["names"] == ["b", "a"]
+
+    assert client_with_store.get("/v1/datasources/failover").json()["names"] == ["b", "a"]
+    r = client_with_store.delete("/v1/datasources/failover")
+    assert r.json()["names"] == []
+
+
+def test_failover_datasource_switches_to_healthy_candidate(client_with_store, monkeypatch):
+    class _FakeController:
+        def __init__(self) -> None:
+            self.datasource = None
+
+        async def replace_datasource(self, ds):
+            self.datasource = ds
+
+    fake = _FakeController()
+    monkeypatch.setattr(datasources_api, "_controller", fake)
+    monkeypatch.setattr(datasources_api, "_embedder_dim", 32)
+    monkeypatch.setattr(datasources_api.chunks_api, "set_active_datasource", lambda ds: None)
+    monkeypatch.setattr(
+        datasources_api.health_api,
+        "update_active_datasource",
+        lambda ds, source="active": None,
+    )
+
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "a", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "b", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.put("/v1/datasources/active/a")
+    client_with_store.put("/v1/datasources/failover", json={"names": ["b", "a"]})
+
+    result = asyncio.run(datasources_api.failover_datasource())
+    assert result == {"from": "a", "to": "b"}
+    assert fake.datasource is not None
+    assert fake.datasource.name == "b"
+    assert client_with_store.get("/v1/datasources/active").json()["name"] == "b"
+
+
+def test_failover_datasource_no_candidates_keeps_active(client_with_store, monkeypatch):
+    monkeypatch.setattr(datasources_api, "_controller", object())
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "a", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.put("/v1/datasources/active/a")
+
+    result = asyncio.run(datasources_api.failover_datasource())
+    assert result is None
+    assert client_with_store.get("/v1/datasources/active").json()["name"] == "a"
+
+
+def test_recover_primary_switches_back(client_with_store, monkeypatch):
+    class _FakeController:
+        def __init__(self) -> None:
+            self.datasource = None
+
+        async def replace_datasource(self, ds):
+            self.datasource = ds
+
+    fake = _FakeController()
+    monkeypatch.setattr(datasources_api, "_controller", fake)
+    monkeypatch.setattr(datasources_api, "_embedder_dim", 32)
+    monkeypatch.setattr(datasources_api.chunks_api, "set_active_datasource", lambda ds: None)
+    monkeypatch.setattr(
+        datasources_api.health_api,
+        "update_active_datasource",
+        lambda ds, source="active": None,
+    )
+
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "a", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "b", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.put("/v1/datasources/active/b")
+    client_with_store.put("/v1/datasources/failover", json={"names": ["a", "b"]})
+
+    result = asyncio.run(datasources_api.recover_primary())
+    assert result == {"from": "b", "to": "a"}
+    assert fake.datasource.name == "a"
+    assert client_with_store.get("/v1/datasources/active").json()["name"] == "a"
+
+
+def test_recover_primary_noop_when_already_primary(client_with_store, monkeypatch):
+    monkeypatch.setattr(datasources_api, "_controller", object())
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "a", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    client_with_store.put("/v1/datasources/active/a")
+    client_with_store.put("/v1/datasources/failover", json={"names": ["a"]})
+
+    result = asyncio.run(datasources_api.recover_primary())
+    assert result is None
+    assert client_with_store.get("/v1/datasources/active").json()["name"] == "a"
+
+
 def test_startup_loads_active_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """When the active config points at an in-memory vector, the next server
     start should pick it up as the default datasource.
@@ -130,7 +288,6 @@ def test_startup_loads_active_config(tmp_path: Path, monkeypatch: pytest.MonkeyP
     # Replace the module-level settings object so ``_build_default_components``
     # reads ``data_dir`` from our tmp dir.
     from app import main as main_mod
-    from app.config.settings import Settings
 
     fake = main_mod.settings.model_copy(update={"data_dir": str(tmp_path)})
     monkeypatch.setattr(main_mod, "settings", fake)

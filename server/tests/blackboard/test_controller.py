@@ -131,6 +131,34 @@ async def test_search_chain_embeds_query_and_retrieves(embedder, ds, tmp_path: P
     assert any("apple" in hit["text"] for hit in result.payload["hits"])
 
 
+@pytest.mark.asyncio
+async def test_replace_datasource_then_import_uses_new(embedder, ds, tmp_path: Path):
+    controller = _build_controller(embedder, ds)
+    new_ds = VectorDBAdapter(
+        DatasourceConfig(
+            name="mem-new",
+            type="vector",
+            options={"backend": "memory", "dim": 32},
+        )
+    )
+
+    await controller.replace_datasource(new_ds)
+    assert controller.datasource_resource.datasource is new_ds
+
+    path = tmp_path / "notes.md"
+    path.write_text("# Notes\n\napple banana cherry\n\nquantum photon", encoding="utf-8")
+    await controller.submit_import("import-new", file_path=str(path), parser="markdown")
+
+    snapshot = await controller.submit_search("search-new", query="apple banana", top_k=3)
+    result = next(
+        (entry for entry in snapshot if entry.kind == EntryKind.SEARCH_RESULT.value),
+        None,
+    )
+    assert result is not None
+    assert result.payload["hits"]
+    assert any("apple" in hit["text"] for hit in result.payload["hits"])
+
+
 class _StubBrowseDataSource(DataSource):
     type = "stub-browse"
 
@@ -237,4 +265,3 @@ async def test_resource_manager_blocks_while_locked():
         assert not resources.can_acquire(["embedder"])
 
     assert resources.can_acquire(["embedder"])
-
