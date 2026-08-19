@@ -1,7 +1,6 @@
 """Tests for the in-memory vector adapter (the default vector backend)."""
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from app.datasources.registry import all_types
@@ -43,6 +42,7 @@ async def test_add_search_delete(adapter: VectorDBAdapter):
     hits = await adapter.search([1.0, 0.0, 0.0, 0.0], top_k=2)
     assert len(hits) == 2
     assert hits[0].text == "apple"
+    assert hits[0].document_id == "doc1"
     assert hits[0].score > hits[1].score
 
     removed = await adapter.delete([ids[0]])

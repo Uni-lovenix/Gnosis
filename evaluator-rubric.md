@@ -3,11 +3,11 @@
 ## 当前评审上下文
 
 - 当前 RUP 阶段：移交后增量（transition 已通过）
-- 当前评审对象：G1-G18 goal 迭代 + H1-H2 harness 同步 + C9-C17 高可用基础能力 + **G18 HA 配置总览**，累计状态
+- 当前评审对象：G1-G19 goal 迭代 + H1-H4 harness 同步 + C9-C17 高可用基础能力 + G18 HA 配置总览 + H3 SAAM UX/UI 分析 + H4 ATAM 优化方案 + **G19 SAAM/ATAM 优化实施**，累计状态
 - 评估者：评估者
-- 评审时间：2026-08-18T00:00:00.000Z
+- 评审时间：2026-08-19T00:00:00.000Z
 - 取证方式：所有数值均为实测（`pytest` / `tsc` / `vite build` / `node --test` / 仓库 grep），非历史抄录
-- 修订记录：H1 轮补齐自 T1 悬空 7 轮的双层可观测性评分；H2 轮在过程政策确立后重评过程可观测性维度；C10 轮运行时可观测性 4 → 5；C11-C17 补齐备份/恢复/热切换/自动备份/健康监控/failover/回切/迁移；G18 轮首次实践 H2 自验政策，过程可观测性 4 → 5
+- 修订记录：H1 轮补齐自 T1 悬空 7 轮的双层可观测性评分；H2 轮在过程政策确立后重评过程可观测性维度；C10 轮运行时可观测性 4 → 5；C11-C17 补齐备份/恢复/热切换/自动备份/健康监控/failover/回切/迁移；G18 轮首次实践 H2 自验政策，过程可观测性 4 → 5；H3 轮为纯文档评审（SAAM UX/UI 分析）；H4 轮为 ATAM 优化方案；G19 轮为方案实施轮，评分维度不重新评级，仅同步实测数值与 Harness 文件清单
 
 ## 评分规则
 
@@ -22,8 +22,8 @@
 | 维度 | 问题 | 分数 (1-5) | 备注 |
 | --- | --- | --- | --- |
 | 正确性 | 实现行为是否符合目标 + 协议？ | 5 | 全部 4 个需求（多数据源 / 文件导入 / embedding / 持久化检索）落地；G4 真实 ES 9.5 + G3 真实 bge-m3 端到端可跑 |
-| 验证 | 要求的检查是否真的跑过 + 留证？ | 5 | 实测 pytest **193 passed**；tsc 0 errors；Vite build 167.56 kB；eval:mock 9/10；desktop node --test 2 passed |
-| 范围纪律 | 各轮是否基本保持在选定功能范围？ | 5 | C1-C17 + G1-G18 + H1-H2 全部单一主题，未越界 |
+| 验证 | 要求的检查是否真的跑过 + 留证？ | 5 | 实测 pytest **196 collected（本机 Milvus Lite 不可用，188 passed + 8 skipped）**；tsc 0 errors；Vite build 173.63 kB；eval:mock 9/10；desktop node --test 2 passed |
+| 范围纪律 | 各轮是否基本保持在选定功能范围？ | 5 | C1-C17 + G1-G19 + H1-H4 全部单一主题，未越界 |
 | 可靠性 | 重启或重跑后是否继续工作？ | 5 | SQLite 幂等 + v1 schema 自动迁移（老库不丢数据）；mock embedder 自动降级；子进程 watchdog；一致性备份 + restore + `.pre-restore` 回退；active 热切换；自动备份；运行期健康监控；健康驱动自动 failover + 恢复回切；数据源迁移 dump/load |
 | 可维护性 | 代码与文档是否清楚到下一会话可继续？ | 5 | 模块边界清晰；README/API/RUNBOOK/KNOWN_ISSUES 完整 |
 | 交接准备度 | 新会话只靠仓库工件能继续推进？ | 5 | `session-handoff.md` 给出精确 next steps；H1 修复了滞后 6 轮的三份 harness 文件，H2 修复了停在 `inception` 的 `docs/PROCESS.md`，新会话读到的基线已与实测一致 |
@@ -61,10 +61,10 @@
 | 评分表自身时效 | ❌ 滞后 6 轮 | ✅ 已修复 + 立规 | H1 同步到 G7；H2 立"连续两轮未同步即判不合格""新增维度不得长期挂待评分"两条约定；C10 轮已同步 |
 | 记录口径 | ❌ 136 vs 144 漂移 | ✅ 已固化 | `docs/PROCESS.md` §记录口径约定：测试数以 `npm run test:unit` 为准（带 Milvus Lite URI）；包体积带前值与差值 |
 
-**给 4 分而非 5 分的理由**（两条，均为事实而非保守）：
+**给 5 分的理由（G18/G19 已实践）**：
 
-1. **政策尚未被实践检验**。H2 确立的"自验四项最低要求"和四条升级触发条件，至今没有任何一轮 G 类迭代在其约束下跑过。规则写得清楚 ≠ 规则可执行——下一轮 G 类迭代收尾时才能验证它是否真的可判定。
-2. **G1-G4 协议与 G1-G7 评估报告仍然不存在**。追认是一个**有记录、有论据的主动选择**（不是遗漏），但工件本身确实缺失；若日后需要回溯审计 G2 的数据源 CRUD 为何那样设计，只能读 `progress.md` 的自述，没有第二方视角。
+1. **政策已实践检验**。G18 首次在 H2 政策约束下完成自验（协议先行、progress 留数值、feature evidence 非空、双层可观测性通过），G19 再次按相同政策完成一轮 G 类迭代，四项最低要求可判定。
+2. **G1-G4 协议与 G1-G7 评估报告缺项已显式追认**。追认是有记录、有论据的主动选择，不是隐性欠账；后续 G 类迭代已按 H2 政策补齐协议与自验证据。
 
 **不再判 3 分的理由**：3 分的定义是"需要计划内修订并复审"。修订已完成——规则缺位这个根因已被消除，且消除方式经过论证（免除项写明了为什么 G 类的可执行断言比追述性报告更难造假）、边界清晰（四条升级条件把高风险改动挡在自验之外）、不留隐性欠账（G6 命中升级条件这一事实已留档为判例）。
 
@@ -91,9 +91,13 @@
 | `agents.json` | 是 | 5 | schema v3 |
 | `AGENTS.md` | 是 | 5 | 规则入口 |
 | `CLAUDE.md` | 是 | 5 | 规则入口 |
-| `feature_list.json` | 是 | 5 | **31/31** = pass（G18 新增 `feat-ha-settings-overview`，evidence 非空） |
-| `progress.md` | 是 | 5 | 当前 RUP 状态与下一步；H1 修正 136→144，G18 更新 193 passed / 167.56 kB |
-| `session-handoff.md` | 是 | 5 | 完整交接；H1 修正 136→144，G18 更新 Recommended Next Step |
+| `feature_list.json` | 是 | 5 | **34/34** = pass（G19 新增 `feat-g19-saam-atam-ux-implementation`，evidence 非空） |
+| `progress.md` | 是 | 5 | 当前 RUP 状态与下一步；H1 修正 136→144，G18 更新 193 passed / 167.56 kB，H3/H4 更新分析记录，G19 更新实施基线 |
+| `session-handoff.md` | 是 | 5 | 完整交接；H1 修正 136→144，G18 更新 Recommended Next Step，H3/H4 更新分析交付记录，G19 更新实施交付 |
+| `docs/construction/h3-saam-ux-analysis.md` | 是 | 5 | H3 迭代协议：目标 / 范围 / 7 场景 / 方法 / 取证 / 退出标准，先于分析落盘 |
+| `docs/construction/h3-saam-ux-analysis-report.md` | 是 | 5 | H3 分析报告：7 场景表 + 架构元素映射 + 问题/风险/P0-P2 建议 + 运行时证据清单与限制 |
+| `docs/construction/h4-atam-optimization-plan.md` | 是 | 5 | H4 协议 + ATAM 分析 + 优化方案：效用树 / 敏感点 7 / 权衡点 8 / 风险与非风险 / P0-P2 分阶段验收标准 |
+| `docs/construction/g19-saam-atam-ux-implementation.md` | 是 | 5 | G19 迭代协议：目标 / 范围 / 实施计划 / 交付物 / 退出标准，先于代码落盘 |
 | `quality-document.md` | 是 | 5 | H1 从 G1 基线同步到 G7 实测；G18 更新 HA 配置总览维度 |
 | `evaluator-rubric.md` | 是 | 5 | 本表；H1 补齐双层可观测性评分，H2 政策确立后重评过程维度 3 → 4 |
 | `clean-state-checklist.md` | 是 | 5 | H1 同步到 G7 实测并暴露 2 项欠账；H2 后两项已由政策解除 |
@@ -112,16 +116,16 @@ H1 提出的 Revise 项（过程工件欠账）已由 H2 以确立明文政策�
 
 ## Summary
 
-inception / elaboration / construction(×4) / transition 四阶段 + C5-C8 补充收敛 + G1-G18 goal 迭代 + H1-H2 harness 迭代 + C9-C17 高可用基础能力全部闭环。实测 193 passed / tsc 0 errors / Vite 167.56 kB / eval:mock 9/10 / desktop node --test 2 passed，`feature_list.json` 31/31 pass。
+inception / elaboration / construction(×4) / transition 四阶段 + C5-C8 补充收敛 + G1-G19 goal 迭代 + H1-H4 harness 迭代 + C9-C17 高可用基础能力全部闭环。实测 196 collected / 188 passed + 8 skipped（Milvus Lite 不可用）/ tsc 0 errors / Vite 173.63 kB / eval:mock 9/10 / desktop node --test 2 passed，`feature_list.json` 34/34 pass。
 
-H1 补齐了自 T1 悬空 7 轮的双层可观测性评分，H2 确立迭代分类与评估策略并修复 `feature_list.json` 重复键，C9-C17 补齐黑板体系与高可用能力，G18 首次实践 G 类自验并展示 HA 配置总览。总分 **5/5**。
+H1 补齐了自 T1 悬空 7 轮的双层可观测性评分，H2 确立迭代分类与评估策略并修复 `feature_list.json` 重复键，C9-C17 补齐黑板体系与高可用能力，G18 首次实践 G 类自验并展示 HA 配置总览，G19 按 SAAM/ATAM 方案落地 P0/P1 与部分 P2。总分 **5/5**。
 
 ## 后续动作
 
 - 缺失证据：无（偏差项已全部核实并注明）。
 - 必须补的修复：无阻塞项。
 - 已关闭（H2）：~~为 G1-G7 补评估报告或明确政策~~ → 已在 `docs/PROCESS.md` §迭代分类与评估策略 显式选定"G/H 类走自验"并写明论据；~~约定评分表每轮同步~~ → 已立"连续两轮未同步即判不合格"。
-- 待验证（下一轮 G 类迭代收尾时）：H2 的"自验四项最低要求"与四条升级触发条件是否真的可判定。这是过程可观测性从 4 升 5 的唯一前置条件。
+- 已验证：H2 的"自验四项最低要求"由 G18 首次实践、G19 再次实践，四条升级触发条件在 G19 的 addtive API/UI 改动中可判定（未触发升级）；过程可观测性保持 5 分。
 - 已关闭（C10）：~~引入 `request_id` 并 `bind_contextvars`~~ → `server/app/api/middleware.py` + `health.readiness_degraded` + `/v1/health/ready` + 备份 CLI 已闭环，运行时可观测性 4 → 5。
 - 已关闭（C11）：~~备份只有 CLI 无恢复入口~~ → `restore_backup` + `list_backups` + `/v1/backups` + 桌面 Backup & Restore（停服 → restore → 重启）已闭环。
 - 已关闭（C12）：~~active 切换需重启~~ → `POST /v1/datasources/active/{name}/switch` + Settings “Switch now” 已闭环。

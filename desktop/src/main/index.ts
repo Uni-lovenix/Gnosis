@@ -111,6 +111,10 @@ function attachIpc(): void {
       if (!api) throw new Error("server not ready");
       return api.listDatasources();
     },
+    listDatasourceSchemas: async () => {
+      if (!api) throw new Error("server not ready");
+      return api.listDatasourceSchemas();
+    },
     testDatasource: async (cfg: DatasourceConfig) => {
       if (!api) throw new Error("server not ready");
       return api.testDatasource(cfg);
@@ -121,11 +125,11 @@ function attachIpc(): void {
     },
     saveDatasourceConfig: async (cfg: DatasourceConfig): Promise<DatasourceConfigRecord> => {
       if (!api) throw new Error("server not ready");
-      const saved = await api.saveDatasourceConfig(cfg);
-      // Mark as tested only if the user has recently verified this exact config.
-      // The IPC layer cannot see the prior test step; the renderer signals
-      // completion by calling activateDatasourceConfig below.
-      return saved;
+      return api.saveDatasourceConfig(cfg);
+    },
+    markDatasourceTested: async (name: string): Promise<DatasourceConfigRecord> => {
+      if (!api) throw new Error("server not ready");
+      return api.markDatasourceTested(name);
     },
     deleteDatasourceConfig: async (name: string) => {
       if (!api) throw new Error("server not ready");

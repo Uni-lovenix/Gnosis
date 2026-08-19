@@ -154,6 +154,7 @@ class ElasticsearchAdapter(DataSource):
                 score=float(h["_score"] or 0.0),
                 text=h["_source"].get("text", ""),
                 metadata=h["_source"].get("metadata", {}),
+                document_id=h["_source"].get("document_id"),
             )
             for h in resp["hits"]["hits"]
         ]

@@ -9,6 +9,25 @@ export interface DatasourceInfo {
   capabilities: string[];
 }
 
+export type DatasourceFieldType = "text" | "password" | "number" | "boolean" | "select" | "list";
+
+export interface DatasourceSchemaField {
+  key: string;
+  label: string;
+  type: DatasourceFieldType;
+  required: boolean;
+  sensitive: boolean;
+  default: unknown;
+  help: string;
+  options: string[];
+}
+
+export interface DatasourceSchema {
+  type: string;
+  label: string;
+  fields: DatasourceSchemaField[];
+}
+
 export interface DatasourceConfig {
   name: string;
   type: string;
@@ -90,6 +109,7 @@ export interface Hit {
   score: number;
   text: string;
   metadata: Record<string, unknown>;
+  document_id?: string | null;
 }
 
 export interface ImportResponse {
@@ -202,9 +222,11 @@ export interface KBAPI {
   createBackup(): Promise<BackupInfo>;
   restoreBackup(name: string): Promise<RestoreResult>;
   listDatasources(): Promise<DatasourceInfo[]>;
+  listDatasourceSchemas(): Promise<Record<string, DatasourceSchema>>;
   testDatasource(cfg: DatasourceConfig): Promise<{ ok: boolean; latency_ms: number | null; message: string | null }>;
   listDatasourceConfigs(): Promise<DatasourceConfigRecord[]>;
   saveDatasourceConfig(cfg: DatasourceConfig): Promise<DatasourceConfigRecord>;
+  markDatasourceTested(name: string): Promise<DatasourceConfigRecord>;
   deleteDatasourceConfig(name: string): Promise<{ name: string; deleted: boolean }>;
   getActiveDatasource(): Promise<ActiveDatasourceResponse>;
   activateDatasourceConfig(name: string): Promise<DatasourceConfigRecord>;

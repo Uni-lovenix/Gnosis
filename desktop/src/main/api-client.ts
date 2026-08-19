@@ -54,6 +54,24 @@ export interface Hit {
   score: number;
   text: string;
   metadata: Record<string, unknown>;
+  document_id?: string | null;
+}
+
+export interface DatasourceSchemaField {
+  key: string;
+  label: string;
+  type: "text" | "password" | "number" | "boolean" | "select" | "list";
+  required: boolean;
+  sensitive: boolean;
+  default: unknown;
+  help: string;
+  options: string[];
+}
+
+export interface DatasourceSchema {
+  type: string;
+  label: string;
+  fields: DatasourceSchemaField[];
 }
 
 export interface ImportResponse {
@@ -115,6 +133,10 @@ export class ApiClient {
     return this.json("GET", "/v1/datasources");
   }
 
+  async listDatasourceSchemas(): Promise<Record<string, DatasourceSchema>> {
+    return this.json("GET", "/v1/datasources/schemas");
+  }
+
   async testDatasource(cfg: { name: string; type: string; options?: Record<string, unknown> }): Promise<{
     ok: boolean;
     latency_ms: number | null;
@@ -147,6 +169,16 @@ export class ApiClient {
     last_tested_at: string | null;
   }> {
     return this.json("POST", "/v1/datasources/configs", cfg);
+  }
+
+  async markDatasourceTested(name: string): Promise<{
+    name: string;
+    type: string;
+    options: Record<string, unknown>;
+    saved_at: string;
+    last_tested_at: string | null;
+  }> {
+    return this.json("POST", `/v1/datasources/configs/${encodeURIComponent(name)}/tested`);
   }
 
   async deleteDatasourceConfig(name: string): Promise<{ name: string; deleted: boolean }> {
@@ -189,15 +221,18 @@ export class ApiClient {
   }
 
   async listFailover(): Promise<string[]> {
-    return this.json("GET", "/v1/datasources/failover");
+    const r = await this.json<{ names: string[] }>("GET", "/v1/datasources/failover");
+    return r.names;
   }
 
   async setFailover(names: string[]): Promise<string[]> {
-    return this.json("PUT", "/v1/datasources/failover", { names });
+    const r = await this.json<{ names: string[] }>("PUT", "/v1/datasources/failover", { names });
+    return r.names;
   }
 
   async clearFailover(): Promise<string[]> {
-    return this.json("DELETE", "/v1/datasources/failover");
+    const r = await this.json<{ names: string[] }>("DELETE", "/v1/datasources/failover");
+    return r.names;
   }
 
   async deactivateDatasource(): Promise<{ name: null; deleted: boolean }> {

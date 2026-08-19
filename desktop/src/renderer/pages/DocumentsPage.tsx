@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { kb } from "../lib/kb";
+import { formatError } from "../lib/errors";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { DocumentInfo } from "../../shared/types";
 
 type LoadState =
@@ -18,7 +20,7 @@ export function DocumentsPage(): JSX.Element {
       const docs = await kb.listDocuments();
       setState({ kind: "ready", docs });
     } catch (e) {
-      setState({ kind: "error", message: (e as Error).message });
+      setState({ kind: "error", message: formatError(e, "文档列表加载失败") });
     }
   }, []);
 
@@ -28,14 +30,13 @@ export function DocumentsPage(): JSX.Element {
 
   const onDelete = useCallback(
     async (id: string) => {
-      const ok = window.confirm(`Delete document ${id}? This removes the local catalog entry only.`);
-      if (!ok) return;
       setPendingDelete(id);
+      setState({ kind: "loading" });
       try {
         await kb.deleteDocument(id);
         await refresh();
       } catch (e) {
-        setState({ kind: "error", message: (e as Error).message });
+        setState({ kind: "error", message: formatError(e, "删除失败") });
       } finally {
         setPendingDelete(null);
       }
@@ -46,29 +47,29 @@ export function DocumentsPage(): JSX.Element {
   return (
     <section className="kb-page">
       <header className="kb-page-header">
-        <h2>Imported documents</h2>
+        <h2>导入的文档</h2>
         <button onClick={() => void refresh()} disabled={state.kind === "loading"}>
-          refresh
+          刷新
         </button>
       </header>
-      {state.kind === "loading" && <p>loading…</p>}
+      {state.kind === "loading" && <p>加载中…</p>}
       {state.kind === "error" && (
         <p className="kb-error" role="alert">
-          {state.message} <button onClick={() => void refresh()}>retry</button>
+          {state.message} <button onClick={() => void refresh()}>重试</button>
         </p>
       )}
       {state.kind === "ready" && state.docs.length === 0 && (
-        <p>No documents listed yet. Import a file from the Import tab to populate this catalog.</p>
+        <p>还没有文档。请到“导入”页导入文件。</p>
       )}
       {state.kind === "ready" && state.docs.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th>Path</th>
-              <th>Parser</th>
-              <th>Chunks</th>
-              <th>Size</th>
-              <th>Imported</th>
+              <th>路径</th>
+              <th>解析器</th>
+              <th>切片</th>
+              <th>大小</th>
+              <th>导入时间</th>
               <th />
             </tr>
           </thead>
@@ -85,13 +86,30 @@ export function DocumentsPage(): JSX.Element {
                     onClick={() => void onDelete(d.id)}
                     disabled={pendingDelete === d.id}
                   >
-                    {pendingDelete === d.id ? "deleting…" : "delete"}
+                    {pendingDelete === d.id ? "删除中…" : "删除"}
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="删除文档记录"
+          body={
+            <>
+              此操作仅删除本地目录中的文档记录，不修改数据源中的切片。
+              <br />
+              请确认删除文档 <code>{pendingDelete}</code>。
+            </>
+          }
+          confirmLabel="删除"
+          matchText={pendingDelete}
+          busy={pendingDelete !== null && state.kind === "loading"}
+          onConfirm={() => void onDelete(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </section>
   );

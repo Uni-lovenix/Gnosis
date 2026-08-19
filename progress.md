@@ -2,10 +2,49 @@
 
 ## Current State
 
-**Last Updated:** 2026-08-18T00:00:00.000Z
-**Active Feature:** G18 HA 配置总览（只读 API + 桌面 Settings 总览；H2 政策首个 G 类自验）
+**Last Updated:** 2026-08-19T00:00:00.000Z
+**Active Feature:** G19 SAAM/ATAM 优化实施（P0/P1 + 部分 P2 落地）
 **Current RUP Phase:** 移交后增量（transition 已通过）
-**Current Iteration:** G1-G7 全 ✅ + H1/H2 ✅ + C9-C17 ✅ + **G18 (HA 配置总览) ✅**
+**Current Iteration:** G1-G7 全 ✅ + H1/H2 ✅ + C9-C17 ✅ + G18 ✅ + H3 ✅ + H4 ✅ + **G19 (SAAM/ATAM 优化实施) ✅**
+
+## 实测基线（2026-08-19 G19）
+
+G 类增量迭代，按 H4 P0/P1 实施，含两项低风险 P2；所有数值本轮实跑取得：
+
+| 项 | 值 |
+| --- | --- |
+| 迭代协议 | `docs/construction/g19-saam-atam-ux-implementation.md`（先于代码落盘） |
+| 后端增量 | `GET /v1/datasources/schemas` + `POST /v1/datasources/configs/{name}/tested` + `Hit.document_id`（4 个 adapter 检索来源字段） |
+| 前端增量 | Search 四态/来源、错误映射、导入失败上下文、per-type 表单 + mark-tested、页面级错误、typed-confirm、Browse 能力面板、中文一致性、自适应健康轮询、响应式/ARIA |
+| `pytest --collect-only` | **196 tests collected**（193 + G19 新增 3） |
+| `npm run verify` | 本机 Milvus Lite 不可用，实测 **188 passed + 8 skipped**（若 Milvus 可跑应为 196 passed）；check/lint 0 errors |
+| `ruff check` 改动模块 | 0 errors（含清理历史未用导入） |
+| `npm run build` | Vite **173.63 kB JS / 41 modules / 517ms**（167.56 → 173.63，+6.07 kB） |
+| `rg "window\\.confirm" desktop/src` | **0 命中** |
+| `feature_list.json` | **33/33 → 34/34 pass**（新增 `feat-g19-saam-atam-ux-implementation`，evidence 非空） |
+
+## 实测基线（2026-08-19 H4）
+
+H 类纯文档轮，**零生产代码改动**，不重复跑服务端测试与构建：
+
+| 项 | 值 |
+| --- | --- |
+| 优化方案 | `docs/construction/h4-atam-optimization-plan.md`（效用树 + 敏感点 7 + 权衡点 8 + 风险/非风险 + P0/P1/P2） |
+| 输入 | H3 SAAM 报告 `docs/construction/h3-saam-ux-analysis-report.md` |
+| `feature_list.json` | **32/32 → 33/33 pass**（新增 `feat-h4-atam-optimization-plan`，evidence 非空） |
+| 实施说明 | 本迭代只产出方案，不实施代码；P0 建议下一 G 类迭代，P1 涉及新 schema/状态拆分建议按 C 类评估 |
+
+## 实测基线（2026-08-19 H3）
+
+H 类纯文档轮，**零生产代码改动**，不重复跑服务端测试与构建：
+
+| 项 | 值 |
+| --- | --- |
+| 分析报告 | `docs/construction/h3-saam-ux-analysis-report.md`（7 场景 + 架构元素映射 + 问题/风险/P0-P2 建议） |
+| 运行时截图 | `/tmp/gnosis-saam-evidence/` 19 张 PNG 全部非空（2200x1464；01-19） |
+| 运行时关键事件 | 导入 1391 chunks 完成；`.xyz` 导入 415 失败；后端停止后重载首屏 `server unreachable` |
+| 限制 | 原生 confirm 弹窗因 macOS 屏幕录制权限无法截屏，保留 CDP 弹窗文案证据 |
+| `feature_list.json` | **31/31 → 32/32 pass**（新增 `feat-h3-saam-ux-analysis`，evidence 非空） |
 
 ## 实测基线（2026-08-18 G18）
 
@@ -298,16 +337,36 @@
   - 验证：193 passed；ruff 0 errors；desktop check/lint 0 errors；Vite 167.56 kB（+1.58 kB）；`feature_list.json` 30/30 → 31/31。
   - 自验：协议先落盘（`docs/construction/g18-ha-settings-overview.md`）、progress 留数值、feature evidence 非空、双层可观测性通过；`evaluator-rubric.md` 过程可观测性 4 → 5。
   - 文档：`docs/API.md` §settings/ha；`docs/RUNBOOK.md` §2b。
+- [x] **H3 SAAM UX/UI 分析**：纯文档轮，**零生产代码改动**。
+  - 方法：UX 化 SAAM，7 个全流程场景（S1-S7），逐场景判定直接/间接/未支持，映射 UI/UX 架构元素并按可用性/体验/界面三维评估。
+  - 静态证据：`App.tsx` / `state.ts` / 5 个页面 / `preload` / `main` / `api-client` / `styles.css` 的 `文件:行号` 引用。
+  - 运行时证据：隔离 `KB_DATA_DIR` / `KB_BACKUP_DIR` + mock embedder + CDP 驱动；导入完成/失败、检索有/无结果、Browse 501、Settings 全分区、服务不可达均有截图或日志。
+  - 结论：S1-S6 直接支持、S7 间接支持；无未支持场景；主要风险是反馈可理解性、配置可学习性、错误上下文连续性。
+  - 建议：P0（Search 四态、可读错误、导入失败上下文）、P1（数据源表单模板、应用内确认、Browse 迁移指引、语言一致）、P2（快捷键/批量、响应式/无障碍、Settings 分区）。
+  - 交付：`docs/construction/h3-saam-ux-analysis.md` 协议 + `h3-saam-ux-analysis-report.md` 报告；`feature_list.json` 31/31 → 32/32；`evaluator-rubric.md` / `session-handoff.md` 同步。
+- [x] **H4 ATAM 优化方案**：纯文档轮，**零生产代码改动**。
+  - 输入：H3 SAAM 报告 + 后端/前端架构核对。
+  - 方法：ATAM 轻量化——业务驱动 → 质量属性效用树 → 当前架构方法 → 敏感点/权衡点 → 风险/非风险 → 优化方案。
+  - 核心权衡：TP1 JSON 配置 vs 表单模板、TP2 全局错误 vs 上下文隔离、TP3 501 诚实反馈 vs 可操作引导、TP4 轮询 vs 事件推送、TP5 原生 confirm vs 应用内确认、TP6 不捆绑 Python vs 开箱即用、TP7 明文凭证 vs 掩码/脱敏、TP8 自动重启 vs 用户可控。
+  - 优化方案：P0（检索四态、可操作错误、导入失败上下文）、P1（per-type schema 表单、页面级错误、应用内确认、Browse 能力面板、语言一致）、P2（自适应健康、无障碍/响应式、效率交互、Settings 分区、打包预检）。
+  - 交付：`docs/construction/h4-atam-optimization-plan.md`；`feature_list.json` 32/32 → 33/33；`evaluator-rubric.md` / `session-handoff.md` 同步。
+- [x] **G19 SAAM/ATAM 优化实施**：按 H4 方案把 P0/P1 落地为生产代码，并顺带完成两项低风险 P2。
+  - P0：Search 四态（空查询/加载/无结果/错误）+ 来源信息（`Hit.document_id` / metadata）；`lib/errors.ts` 统一“原因 + 下一步”文案；导入失败保留在 Import 页上下文并进入事件日志。
+  - P1：`GET /v1/datasources/schemas` per-type 表单 + 高级 JSON；`POST /v1/datasources/configs/{name}/tested` 接通 mark-tested；全局状态收敛为健康/导入，检索/浏览/配置错误下沉页面；`ConfirmDialog` 替换全部 `window.confirm`；Browse 能力面板 + document_id 下拉 + 迁移指引；全界面中文一致。
+  - P2：健康轮询 degraded 10s / 正常 30s / 不可达 5s；ARIA + focus + 320px 响应式。
+  - 测试：`test_datasource_configs_api.py` +3（schemas / mark-tested / 404）；4 个 adapter 检索来源断言同步。
+  - 验证：196 collected；本机 Milvus Lite 不可用实测 188 passed + 8 skipped；ruff 0 errors；desktop check/lint 0 errors；Vite 173.63 kB（+6.07 kB）；`feature_list.json` 33/33 → 34/34。
+  - 文档：`docs/construction/g19-saam-atam-ux-implementation.md`；`docs/API.md` §schemas / tested / Hit.document_id；`progress.md` / `session-handoff.md` / `evaluator-rubric.md` 同步。
 
 ### What's In Progress
 
-- 无。G18 已收尾。所有 KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 均收敛；仅 KI-01 / KI-08 / KI-10 仍 open（低-中严重度、不阻塞个人生产使用）。
+- 无。G19 已收尾。所有 KI-02 / KI-03 / KI-04 / KI-05 / KI-06 / KI-07 / KI-09 均收敛；仅 KI-01 / KI-08 / KI-10 仍 open（低-中严重度、不阻塞个人生产使用）。
 
 ### What's Next
 
 **过程侧已闭环**
 
-1. H2 政策的"自验四项最低要求"与四条升级触发条件已由 **G18** 实践验证：协议先行、数值可复核、evidence 非空、双层可观测性全部成立；过程可观测性 4 → 5。
+1. H2 政策的"自验四项最低要求"与四条升级触发条件已由 **G18** 首次实践、**G19** 再次实践验证：协议先行、数值可复核、evidence 非空、双层可观测性全部成立；过程可观测性 4 → 5。
 
 **功能候选**
 
@@ -363,7 +422,7 @@
 
 ## Notes for Next Session
 
-- 当前仓库 `feature_list.json` 全部 `pass`（**31/31**，含 C9-C17 + G18），且 evidence 字段全部非空。
+- 当前仓库 `feature_list.json` 全部 `pass`（**34/34**，含 C9-C17 + G18 + G19），且 evidence 字段全部非空。
 - 下次启动：`bash init.sh` → 阅读 README → **PROCESS §迭代分类与评估策略**（开新迭代前必读，决定要不要出评估报告）→ KNOWN_ISSUES → `docs/goal/01-mapping.md` → RUNBOOK §2 数据源配置管理。
 - 任何接口变更必须同步 `docs/elaboration/01-architecture-baseline.md` 与 `docs/API.md`。
 - `feature_list.json` 描述统一使用中文弯引号 “…”；新增条目沿用。

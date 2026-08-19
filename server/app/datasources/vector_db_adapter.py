@@ -197,6 +197,7 @@ class VectorDBAdapter(DataSource):
                     score=s,
                     text=self._backend._texts[i],
                     metadata=self._backend._meta[i],
+                    document_id=self._backend._meta[i].get("document_id"),
                 )
                 for i, s in results
                 if not filter or _matches(self._backend._meta[i], filter)
@@ -216,7 +217,13 @@ class VectorDBAdapter(DataSource):
                 if filter and not _matches(row.get("metadata", {}), filter):
                     continue
                 hits.append(
-                    Hit(id=idx, score=score, text=row["text"], metadata=row.get("metadata", {}))
+                    Hit(
+                        id=idx,
+                        score=score,
+                        text=row["text"],
+                        metadata=row.get("metadata", {}),
+                        document_id=row.get("metadata", {}).get("document_id"),
+                    )
                 )
         return hits
 

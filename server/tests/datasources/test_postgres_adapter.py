@@ -1,7 +1,6 @@
 """Tests for the PostgreSQL adapter using a fake psycopg connection."""
 from __future__ import annotations
 
-from contextlib import contextmanager
 from typing import Any
 
 import pytest
@@ -106,13 +105,14 @@ async def test_pg_add_inserts_rows(patched_pg):
 async def test_pg_search_executes_cosine_query(patched_pg):
     conn, _ = patched_pg
     conn.cursor_obj._fetchall = [
-        ("c1", "hello", '{"src": "x"}', 0.95),
+        ("c1", "d1", "hello", '{"src": "x"}', 0.95),
     ]
     cfg = PostgresConfig(name="pg", options={"dsn": "x", "dim": 4})
     adapter = PostgresAdapter(cfg)
     hits = await adapter.search([1.0, 0.0, 0.0, 0.0], top_k=3)
     assert len(hits) == 1
     assert hits[0].text == "hello"
+    assert hits[0].document_id == "d1"
     last_sql = conn.cursor_obj.executed[-1][0]
     assert "<=>" in last_sql
     assert "ORDER BY" in last_sql

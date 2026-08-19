@@ -1,7 +1,7 @@
 /**
  * Tiny global state machine for the renderer.
  *
- * State enum: idle | uploading | indexing | completed | searching | error
+ * State enum: idle | uploading | indexing | completed
  *
  * Callbacks returned from the hook are wrapped in ``useCallback`` so their
  * identity is stable across renders; otherwise consumers like ``App`` whose
@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { kb } from "./kb";
+import { formatError } from "./errors";
 import type { HealthInfo, Hit, TaskEvent, TaskStage, TaskStatus } from "../../shared/types";
 
 export type AppState =
@@ -36,15 +37,13 @@ export type AppState =
       events: TaskEvent[];
       lastMessage: string;
       error: string | null;
-    }
-  | { kind: "searching"; query: string }
-  | { kind: "error"; message: string };
+    };
 
 export function useAppState() {
   const [state, setState] = useState<AppState>({ kind: "idle" });
-  const [results, setResults] = useState<Hit[]>([]);
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [healthInfo, setHealthInfo] = useState<HealthInfo | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
   // Monotonic counter bumped each time an import lands in ``completed``.
   // The import-history panel watches this to know when to re-fetch.
   const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0);
@@ -92,10 +91,11 @@ export function useAppState() {
       const health = await kb.health();
       setServerReady(true);
       setHealthInfo(health);
+      setHealthError(null);
     } catch (e) {
       setServerReady(false);
       setHealthInfo(null);
-      setState({ kind: "error", message: `Server unreachable: ${String(e)}` });
+      setHealthError(formatError(e, "服务不可达"));
     }
   }, []);
 
@@ -120,38 +120,45 @@ export function useAppState() {
         lastMessage: "",
       });
     } catch (e) {
-      setState({ kind: "error", message: `Import failed: ${String(e)}` });
+      const raw = String(e);
+      setState({
+        kind: "completed",
+        file: p,
+        taskId: "",
+        stage: "failed",
+        progress: 0,
+        events: [
+          {
+            ts: new Date().toISOString(),
+            stage: "failed",
+            progress: 0,
+            message: formatError(e, "导入失败"),
+          },
+        ],
+        lastMessage: formatError(e, "导入失败"),
+        error: raw,
+      });
     }
   }, []);
 
-  const search = useCallback(async (query: string): Promise<void> => {
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
-    setState({ kind: "searching", query });
-    try {
-      const hits = await kb.search(query, { top_k: 8 });
-      setResults(hits);
-      setState({ kind: "idle" });
-    } catch (e) {
-      setState({ kind: "error", message: `Search failed: ${String(e)}` });
-    }
+  const search = useCallback(async (query: string): Promise<Hit[]> => {
+    if (!query.trim()) return [];
+    return kb.search(query, { top_k: 8 });
   }, []);
 
-  const resetError = useCallback((): void => {
-    setState({ kind: "idle" });
+  const resetHealthError = useCallback((): void => {
+    setHealthError(null);
   }, []);
 
   return {
     state,
-    results,
     serverReady,
     healthInfo,
+    healthError,
     checkHealth,
     importFile,
     search,
-    resetError,
+    resetHealthError,
     historyRefreshKey,
   };
 }

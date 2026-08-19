@@ -2,6 +2,7 @@ import React from "react";
 import type { AppState } from "../lib/state";
 import type { TaskEvent, TaskStage } from "../../shared/types";
 import { ImportHistoryPanel } from "./ImportHistoryPanel";
+import { formatError } from "../lib/errors";
 
 interface Props {
   state: AppState;
@@ -92,19 +93,6 @@ function deriveView(state: AppState): ImportView {
         error: state.error,
         showProgress: true,
       };
-    case "searching":
-    case "error":
-      // No import context to display. (The error banner lives in App.)
-      return {
-        busy: false,
-        file: null,
-        progress: 0,
-        stage: "queued",
-        events: [],
-        lastMessage: "",
-        error: null,
-        showProgress: false,
-      };
   }
 }
 
@@ -134,7 +122,7 @@ export function ImportPage({ state, onImport, historyRefreshKey, onViewAll }: Pr
                 <line x1="8" y1="3" x2="8" y2="13" />
                 <line x1="3" y1="8" x2="13" y2="8" />
               </svg>
-              <span>选择文件</span>
+              <span>{view.error ? "重新选择文件" : "选择文件"}</span>
             </>
           )}
         </span>
@@ -155,9 +143,10 @@ export function ImportPage({ state, onImport, historyRefreshKey, onViewAll }: Pr
             )}
           </p>
           {state.kind === "completed" && view.error && (
-            <p className="kb-stage-message" style={{ color: "var(--error)" }}>
-              失败原因:{view.error}
-            </p>
+            <div className="kb-import-failure" role="alert">
+              <strong>导入失败</strong>
+              <span>{formatError(view.error, "导入失败")}</span>
+            </div>
           )}
           <details className="kb-event-log" open={view.events.length > 0}>
             <summary>事件日志({view.events.length})</summary>

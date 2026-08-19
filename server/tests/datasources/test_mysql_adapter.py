@@ -99,8 +99,8 @@ async def test_mysql_add_inserts_and_idempotent(patched_mysql):
 async def test_mysql_search_ranks_by_cosine(patched_mysql):
     conn = patched_mysql
     conn.cursor_obj._rows = [
-        ("c1", "hello", json.dumps({"src": "x"}), json.dumps([1.0, 0.0, 0.0, 0.0])),
-        ("c2", "bye", json.dumps({"src": "y"}), json.dumps([0.0, 1.0, 0.0, 0.0])),
+        ("c1", "d1", "hello", json.dumps({"src": "x"}), json.dumps([1.0, 0.0, 0.0, 0.0])),
+        ("c2", "d2", "bye", json.dumps({"src": "y"}), json.dumps([0.0, 1.0, 0.0, 0.0])),
     ]
     cfg = MysqlConfig(name="m", options={"host": "x", "dim": 4})
     adapter = MysqlAdapter(cfg)
@@ -123,7 +123,6 @@ async def test_mysql_search_filter(patched_mysql):
 
 @pytest.mark.asyncio
 async def test_mysql_delete(patched_mysql):
-    conn = patched_mysql
     cfg = MysqlConfig(name="m", options={"host": "x", "dim": 4})
     adapter = MysqlAdapter(cfg)
     removed = await adapter.delete(["a", "b", "c"])
@@ -183,7 +182,7 @@ async def test_mysql_search_warns_when_scan_limit_hit(patched_mysql):
     )
     adapter = MysqlAdapter(cfg)
     conn.cursor_obj._rows = [
-        (f"c{i}", "hi", json.dumps({}), json.dumps([1.0, 0.0, 0.0, 0.0]))
+        (f"c{i}", f"d{i}", "hi", json.dumps({}), json.dumps([1.0, 0.0, 0.0, 0.0]))
         for i in range(max_scan)
     ]
     with structlog.testing.capture_logs() as cap:
@@ -205,7 +204,7 @@ async def test_mysql_search_no_warn_below_limit(patched_mysql):
     )
     adapter = MysqlAdapter(cfg)
     conn.cursor_obj._rows = [
-        (f"c{i}", "hi", json.dumps({}), json.dumps([1.0, 0.0, 0.0, 0.0]))
+        (f"c{i}", f"d{i}", "hi", json.dumps({}), json.dumps([1.0, 0.0, 0.0, 0.0]))
         for i in range(max_scan - 1)
     ]
     with structlog.testing.capture_logs() as cap:

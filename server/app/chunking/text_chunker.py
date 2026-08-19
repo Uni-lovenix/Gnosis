@@ -52,8 +52,9 @@ class TextChunker:
 
     def _flush(self, text: str, document_id: str, doc_meta: dict) -> list[Chunk]:
         """Slice a buffer into chunks of <= chunk_size (hard split on long text)."""
+        meta = {**doc_meta, "document_id": document_id}
         if len(text) <= self.params.chunk_size:
-            return [Chunk(document_id=document_id, text=text, metadata=dict(doc_meta))]
+            return [Chunk(document_id=document_id, text=text, metadata=meta)]
         out: list[Chunk] = []
         i = 0
         n = len(text)
@@ -64,7 +65,7 @@ class TextChunker:
                 end = _find_break(text, end, hard_min=i + self.params.chunk_size // 2)
             piece = text[i:end].strip()
             if piece:
-                out.append(Chunk(document_id=document_id, text=piece, metadata=dict(doc_meta)))
+                out.append(Chunk(document_id=document_id, text=piece, metadata=meta))
             if end == i:
                 break
             i = max(end - self.params.overlap, i + 1)

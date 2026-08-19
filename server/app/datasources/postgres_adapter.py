@@ -122,11 +122,12 @@ class PostgresAdapter(DataSource):
         params: list[Any] = [vector, top_k]
         if filter:
             # naive equality on metadata JSONB keys, e.g. {"document_id": "abc"}
-            where = " AND " + " AND ".join(f"metadata ->> %s = %s" for _ in filter)
+            where = " AND " + " AND ".join("metadata ->> %s = %s" for _ in filter)
             for k, v in filter.items():
                 params.extend([k, v])
         sql = (
-            f"SELECT id, text, metadata, 1 - (vector <=> %s::vector) AS score "
+            f"SELECT id, document_id, text, metadata, "
+            f"1 - (vector <=> %s::vector) AS score "
             f"FROM {self._table} "
             f"WHERE TRUE{where} "
             f"ORDER BY vector <=> %s::vector "
@@ -136,7 +137,13 @@ class PostgresAdapter(DataSource):
             cur.execute(sql, params + [vector, top_k])
             rows = cur.fetchall()
         return [
-            Hit(id=r[0], score=float(r[3]), text=r[1], metadata=_loads(r[2]))
+            Hit(
+                id=r[0],
+                document_id=r[1],
+                score=float(r[4]),
+                text=r[2],
+                metadata=_loads(r[3]),
+            )
             for r in rows
         ]
 

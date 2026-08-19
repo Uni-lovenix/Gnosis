@@ -98,6 +98,32 @@ Base URL: `http://127.0.0.1:8765`
 > - `small_dataset_only` —— 仅适合小数据集（≤ `max_scan_rows` 行）；
 > - `scan_limit_risk` —— `mysql` 特有，search 可能被 `max_scan_rows` 截断；当数据量逼近上限时应切换到 `postgresql`（pgvector）或 `vector`（Milvus）。详见 `docs/RUNBOOK.md` §3。
 
+### `GET /v1/datasources/schemas`
+
+返回每个数据源类型的可编辑字段 schema，供桌面端表单模式渲染；该接口只读，
+不改变既有 JSON 配置路径。
+
+```json
+{
+  "vector": {
+    "type": "vector",
+    "label": "向量数据库",
+    "fields": [
+      {
+        "key": "backend",
+        "label": "后端",
+        "type": "select",
+        "required": true,
+        "sensitive": false,
+        "default": "memory",
+        "help": "memory 适合小规模个人库；milvus 适合更大规模向量检索。",
+        "options": ["memory", "milvus"]
+      }
+    ]
+  }
+}
+```
+
 ### `POST /v1/datasources/test`
 
 联通性测试。
@@ -146,6 +172,16 @@ Base URL: `http://127.0.0.1:8765`
 错误：
 - `400 unknown datasource type` —— `type` 不在注册表里；
 - `400 invalid config` —— adapter 在 build 阶段抛错（缺依赖、options 不合法等）。
+
+#### `POST /v1/datasources/configs/{name}/tested`
+
+在用户测试连接成功后，为已保存配置写入 `last_tested_at` 时间戳。
+
+```json
+{"name": "vec-local", "type": "vector", "options": {"backend": "memory", "dim": 64}, "saved_at": "...", "last_tested_at": "2026-08-19T00:00:00Z"}
+```
+
+错误：`404` —— 找不到该 name 的保存配置。
 
 #### `DELETE /v1/datasources/configs/{name}`
 
@@ -331,11 +367,15 @@ Query：`since_id`（可选，默认 `0`）—— 只返回 row id > `since_id` 
       "id": "chunk-id",
       "score": 0.83,
       "text": "...",
-      "metadata": {"document_id": "...", "src": "..."}
+      "metadata": {"document_id": "...", "src": "..."},
+      "document_id": "doc456"
     }
   ]
 }
 ```
+
+`document_id` 为可选来源字段（G19 起返回）；桌面端用它展示结果来源，旧客户端
+忽略该字段即可。
 
 `filter` 按 metadata JSON 字段等值匹配；不同数据源适配器可能有差异，详见各适配器 README。
 

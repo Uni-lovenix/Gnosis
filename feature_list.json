@@ -1,7 +1,7 @@
 {
   "project": "灵知 (Gnosis)",
   "description": "1. 支持多数据源配置（最少支持elasticsearch，postgresql，mysql，向量数据库）\n2. 支持文件导入功能，包括：excel，word，pdf，markdown等\n3. 要能向量化数据，支持embedding模型，模型使用bge-m3\n4. 数据向量化后存入存入数据库",
-  "last_updated": "2026-08-18T00:00:00.000Z",
+  "last_updated": "2026-08-19T00:00:00.000Z",
   "status_legend": {
     "not_started": "功能还没开始做。",
     "in_progress": "这个功能是当前唯一正在进行的任务。",
@@ -440,6 +440,48 @@
       "rupPhase": "transition",
       "iteration": "ha-settings-overview",
       "ownerRole": "数据与报表开发者 / 多端体验开发者"
+    },
+    {
+      "id": "feat-h3-saam-ux-analysis",
+      "name": "SAAM UX/UI 分析（H3）",
+      "description": "用 UX 化 SAAM 对桌面端可用性、用户体验、用户界面做场景驱动评审：7 个全流程场景、直接/间接/未支持分类、架构元素映射、运行时截图取证、P0/P1/P2 建议。",
+      "dependencies": [
+        "feat-ha-settings-overview"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/h3-saam-ux-analysis.md（迭代协议）+ h3-saam-ux-analysis-report.md（分析报告，含 7 场景表、架构元素映射、问题/风险/建议、运行时证据清单）；运行时取证：隔离 KB_DATA_DIR/KB_BACKUP_DIR + mock embedder + CDP 9223 驱动 Electron，截图 19 张存 /tmp/gnosis-saam-evidence/（01-19，含导入进度/失败/服务不可达）；导入 2.8MB Markdown 1391 chunks 完成、.xyz 415 失败、后端停止后重载首屏 server unreachable；删除确认原生弹窗因 macOS 屏幕录制权限无法截屏，保留 CDP 弹窗文案证据；feature_list 31/31 → 32/32；progress/evaluator-rubric/session-handoff 已同步。",
+      "testedAt": "2026-08-19T00:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "h3-saam-ux-analysis",
+      "ownerRole": "多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-h4-atam-optimization-plan",
+      "name": "ATAM 优化方案（H4）",
+      "description": "在 H3 SAAM 分析基础上使用 ATAM 系统方法整理优化方案：质量属性效用树、架构方法清单、敏感点/权衡点、风险/非风险、P0/P1/P2 分阶段优化与验收标准。",
+      "dependencies": [
+        "feat-h3-saam-ux-analysis"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/h4-atam-optimization-plan.md（协议 + ATAM 分析 + 优化方案）：质量属性效用树含 U/P/A/M/S/D/T/A11 场景；敏感点 7 项、权衡点 8 项（TP1-TP8）、风险 7 项、非风险 5 项；P0 3 项（检索四态/错误文案/导入失败上下文）、P1 5 项（per-type schema 表单/页面级错误/应用内确认/Browse 能力面板/语言一致）、P2 5 项（自适应健康/无障碍响应式/效率交互/Settings 分区/打包预检）；每项含目标架构元素、改动方向、权衡与验收；零生产代码改动；feature_list 32/32 → 33/33；progress/evaluator-rubric/session-handoff 已同步。",
+      "testedAt": "2026-08-19T00:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "h4-atam-optimization-plan",
+      "ownerRole": "多端体验开发者 / 评估者"
+    },
+    {
+      "id": "feat-g19-saam-atam-ux-implementation",
+      "name": "SAAM/ATAM 优化实施（G19）",
+      "description": "按 H3 SAAM 与 H4 ATAM 方案落地 P0/P1 与部分 P2：检索四态与结果来源、可读错误文案、导入失败上下文、per-type 数据源表单 + mark_tested、页面级错误、应用内 typed-confirm、Browse 能力面板、中文一致性、自适应健康轮询与基础响应式。",
+      "dependencies": [
+        "feat-h4-atam-optimization-plan"
+      ],
+      "status": "pass",
+      "evidence": "docs/construction/g19-saam-atam-ux-implementation.md（协议先落盘）；后端新增 GET /v1/datasources/schemas + POST /v1/datasources/configs/{name}/tested + Hit.document_id；desktop/src/renderer/lib/errors.ts 错误映射；SearchPage 四态、ImportPage 失败上下文、SettingsPage 表单/typed-confirm、BrowsePage 能力面板、DocumentsPage 确认框、App 中文导航 + 自适应轮询；server/tests/test_datasource_configs_api.py 新增 3 项；npm run verify：196 collected，本机 Milvus Lite 不可用实测 188 passed + 8 skipped；ruff 0 errors；tsc 0 errors；Vite 167.56 → 173.63 kB / 39 → 41 modules；rg 'window.confirm' desktop/src 0 命中。",
+      "testedAt": "2026-08-19T00:00:00.000Z",
+      "rupPhase": "transition",
+      "iteration": "g19-saam-atam-ux-implementation",
+      "ownerRole": "多端体验开发者"
     }
   ]
 }

@@ -48,6 +48,32 @@ def test_upsert_then_list(client_with_store: TestClient) -> None:
     assert names == ["vec-local"]
 
 
+def test_schemas_endpoint_returns_per_type_fields(client_with_store: TestClient) -> None:
+    r = client_with_store.get("/v1/datasources/schemas")
+    assert r.status_code == 200
+    body = r.json()
+    assert {"vector", "elasticsearch", "postgresql", "mysql"} <= set(body)
+    assert any(f["key"] == "backend" for f in body["vector"]["fields"])
+    assert any(f["key"] == "password" and f["sensitive"] for f in body["mysql"]["fields"])
+
+
+def test_mark_tested_stamps_last_tested_at(client_with_store: TestClient) -> None:
+    client_with_store.post(
+        "/v1/datasources/configs",
+        json={"name": "v", "type": "vector", "options": {"backend": "memory", "dim": 32}},
+    )
+    r = client_with_store.post("/v1/datasources/configs/v/tested")
+    assert r.status_code == 200
+    assert r.json()["last_tested_at"]
+    listed = client_with_store.get("/v1/datasources/configs").json()
+    assert listed[0]["last_tested_at"]
+
+
+def test_mark_tested_unknown_returns_404(client_with_store: TestClient) -> None:
+    r = client_with_store.post("/v1/datasources/configs/missing/tested")
+    assert r.status_code == 404
+
+
 def test_upsert_rejects_unknown_type(client_with_store: TestClient) -> None:
     r = client_with_store.post(
         "/v1/datasources/configs",

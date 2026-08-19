@@ -6,7 +6,7 @@
   2. 文件导入（excel、word、pdf、markdown）
   3. embedding 模型 bge-m3
   4. 向量化后存入数据库
-- Current status: **G1-G7 + H1 + H2 + C9-C17 + G18 全 pass**；黑板体系已作为生产默认编排路径落地，高可用基础能力（request_id / readiness / 一致性备份/恢复 / 降级横幅 / active 热切换 / 自动备份 / 运行期健康监控 / 自动 failover / 恢复回切 / 数据迁移 / HA 配置总览）已闭环；H2 自验政策已实践。
+- Current status: **G1-G7 + H1-H4 + C9-C17 + G18 + G19 全 pass**；黑板体系已作为生产默认编排路径落地，高可用基础能力（request_id / readiness / 一致性备份/恢复 / 降级横幅 / active 热切换 / 自动备份 / 运行期健康监控 / 自动 failover / 恢复回切 / 数据迁移 / HA 配置总览）已闭环；H2 自验政策已实践；H3 SAAM UX/UI 分析与 H4 ATAM 优化方案已闭环，G19 已按该方案实施 P0/P1。
   - G5 = KI-03 收敛（OpenAI 兼容远端指数退避）。`npm run verify` 120 passed（113 + 7）；`embedder.retry` 结构化日志可见。
   - G6 = 上传进度可观测性（阶段文字 + 事件日志）。`TaskStore` v1 schema（`stage` 列 + `task_events` ring buffer）；`TaskResponse.events` 嵌入最近 32 条；`npm run verify` 125 passed（113 + 12）；前端 ImportPage 新增 stage tag + 折叠事件日志；Vite 153.74 kB。
   - G7 = ES 数据浏览页（chunk-level + 文档聚合 + 过滤 + 分页）。`ElasticsearchAdapter` 加 `list_chunks` + `aggregate_by_document`；`DataSource` 基类新增可选 `list_chunks`/`aggregate_by_document`（默认抛 `NotSupportedError`，仅 ES 实现 `chunk_list` capability）；新增 `GET /v1/chunks`；前端 BrowsePage（parser 下拉 + document_id debounce 输入 + 聚合表 + 分页 + 不支持 capability 永久 banner）；Vite 158.61 kB。
@@ -23,6 +23,9 @@
 - **实测基线（2026-08-18 C16）**：`pytest --collect-only` **188 tests collected**；`KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` **188 passed**；`ruff check` 0 errors；desktop `check` / `lint` 0 errors；Vite **165.98 kB JS / 39 modules / 438ms**（纯后端，体积不变）；`feature_list.json` **29/29 pass**。
 - **实测基线（2026-08-18 C17）**：`pytest --collect-only` **191 tests collected**；`KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` **191 passed**；`ruff check` 0 errors；desktop `check` / `lint` 0 errors；Vite **165.98 kB JS / 39 modules / 426ms**（纯后端，体积不变）；`feature_list.json` **30/30 pass**。
 - **实测基线（2026-08-18 G18）**：`pytest --collect-only` **193 tests collected**；`KB_MILVUS_URI=./kb_milvus_lite.db pytest tests/` **193 passed**；`ruff check` 0 errors；desktop `check` / `lint` 0 errors；Vite **167.56 kB JS / 39 modules / 431ms**；`feature_list.json` **31/31 pass**。
+  - **H3 实测基线（2026-08-19）**：H 类纯文档轮，零生产代码改动；报告 `docs/construction/h3-saam-ux-analysis-report.md`；运行时截图 19 张存 `/tmp/gnosis-saam-evidence/`（导入完成/失败、检索有/无结果、Browse 501、Settings 全分区、服务不可达）；`feature_list.json` **31/31 → 32/32**。
+  - **H4 实测基线（2026-08-19）**：H 类纯文档轮，零生产代码改动；`docs/construction/h4-atam-optimization-plan.md`（效用树 + 敏感点 7 + 权衡点 8 + 风险/非风险 + P0/P1/P2）；`feature_list.json` **32/32 → 33/33**。
+  - **G19 实测基线（2026-08-19）**：P0/P1 实施 + 部分 P2；`GET /v1/datasources/schemas` + `POST /v1/datasources/configs/{name}/tested` + `Hit.document_id`；Search 四态/来源、错误映射、导入失败上下文、per-type 表单、typed-confirm、Browse 能力面板、中文一致性、自适应健康轮询、响应式/ARIA；`npm run verify` **196 collected / 本机 Milvus Lite 不可用 188 passed + 8 skipped**；ruff 0 errors；Vite **173.63 kB / 41 modules**；`window.confirm` 0 命中；`feature_list.json` **33/33 → 34/34**。
   - ⚠️ G7 记录的 "136 passed" 是 Milvus 适配器 skip 状态下的计数，差值 8 = `tests/datasources/test_milvus_adapter.py` 的 8 项。**非回归**。记录测试数请统一走 `npm run test:unit`（它带 `KB_MILVUS_URI=./kb_milvus_lite.db`，Milvus 会全跑）。
 - Branch / commit: `main` · HEAD `72d8a2a` · remote `origin` = `https://github.com/Uni-lovenix/Gnosis.git`（已 push，仓库现非空）
 
@@ -105,6 +108,23 @@ git push origin main
   - 首个 G 类自验：H2 四项最低要求全部可判定，过程可观测性 4 → 5。
   - 测试 +2：`tests/api/test_ha_settings_api.py`。
   - 文档：`docs/construction/g18-ha-settings-overview.md`；`docs/API.md` §settings/ha；`docs/RUNBOOK.md` §2b。
+- [x] **H3 SAAM UX/UI 分析**（纯文档轮，**零生产代码改动**）：
+  - 方法：UX 化 SAAM，7 个全流程场景（S1-S7），逐场景判定直接/间接/未支持并映射 UI/UX 架构元素。
+  - 取证：静态代码 `文件:行号` + 隔离环境运行时（mock embedder、CDP 9223）截图；导入 1391 chunks 完成、`.xyz` 415 失败、后端停止后首屏 `server unreachable`。
+  - 结论：S1-S6 直接支持、S7 间接支持；无未支持场景；主要风险是反馈可理解性、配置可学习性、错误上下文连续性。
+  - 交付：`docs/construction/h3-saam-ux-analysis.md` 协议 + `h3-saam-ux-analysis-report.md` 报告；`feature_list.json` 32/32；`progress.md` / `evaluator-rubric.md` 同步。
+- [x] **H4 ATAM 优化方案**（纯文档轮，**零生产代码改动**）：
+  - 输入：H3 SAAM 报告 + 前后端架构核对。
+  - 方法：ATAM 轻量化——业务驱动 → 质量属性效用树 → 当前架构方法 → 敏感点/权衡点 → 风险/非风险 → P0/P1/P2 优化方案。
+  - 关键权衡：TP1 JSON 配置 vs 表单模板、TP2 全局错误 vs 上下文隔离、TP3 501 诚实反馈 vs 可操作引导、TP4 轮询 vs 事件推送、TP5 原生 confirm vs 应用内确认、TP6 不捆绑 Python vs 开箱即用、TP7 明文凭证 vs 掩码/脱敏、TP8 自动重启 vs 用户可控。
+  - 交付：`docs/construction/h4-atam-optimization-plan.md`；`feature_list.json` 32/32 → 33/33；`progress.md` / `evaluator-rubric.md` / `session-handoff.md` 同步。
+- [x] **G19 SAAM/ATAM 优化实施**：
+  - P0：Search 四态 + 结果来源（`Hit.document_id` / metadata）；`lib/errors.ts` 可读错误映射；导入失败保留在 Import 上下文并进入事件日志。
+  - P1：per-type schema 表单 + 高级 JSON；mark-tested 端点接通；页面级错误下沉；应用内 typed-confirm 替换原生弹窗；Browse 能力面板与迁移指引；中文一致。
+  - P2：自适应健康轮询（5s/10s/30s）；ARIA + focus + 320px 响应式。
+  - 后端：`GET /v1/datasources/schemas`、`POST /v1/datasources/configs/{name}/tested`、`Hit.document_id`。
+  - 测试：`test_datasource_configs_api.py` +3；`npm run verify` 196 collected / 188 passed + 8 skipped；ruff 0 errors；Vite 173.63 kB / 41 modules。
+  - 文档：`docs/construction/g19-saam-atam-ux-implementation.md`；`docs/API.md`；`feature_list.json` 33/33 → 34/34。
 
 - [x] 启动范围确认（inception）：`docs/inception/{01-project-scope,02-initial-risks,03-initial-iteration-plan}.md`
 - [x] 架构与风险细化（elaboration）：`docs/elaboration/{01-architecture-baseline,02-risk-update,03-iteration-protocols}.md`
@@ -224,6 +244,8 @@ git push origin main
 | **G18 settings/ha** | TestClient `GET /v1/settings/ha` | 9 个 HA 参数完整；env 覆盖（interval / failover 阈值）反映到响应 |
 | **G18 desktop build** | `npm --prefix desktop run build` | Vite **167.56 kB JS / 39 modules / 431ms**（+1.58 kB vs C17） |
 | **G18 H2 自验** | 协议先行 / progress 数值 / feature evidence / 双层可观测性 | 四项全部成立；过程可观测性 4 → 5 |
+| **H3 SAAM 取证** | 隔离 Electron + CDP + mock embedder | 19 张截图非空；导入完成/失败/服务不可达均有运行时证据；原生 confirm 因屏幕录制权限仅保留 CDP 文案 |
+| **H4 ATAM 权衡** | 前后端架构核对 + H3 输入 | 敏感点 7 / 权衡点 8 / 风险 7 / 非风险 5；P0 3 项、P1 5 项、P2 5 项，均含验收标准 |
 | **H2 PROCESS.md 陈旧度** | `grep -n "当前阶段\|待进入" docs/PROCESS.md`（修正前） | `当前阶段：inception`；细化/构建/移交三行均 `待进入` → 本次整理中**滞后最严重**的一份 |
 | **H2 重复键取证** | `json.load(..., object_pairs_hook=)` 检测 | `feat-construction-1`…`-4` + `feat-transition-handoff` 共 **5 处重复 `evidence` 键**（真实内容在前、空串在后），标准解析器读到空值 → 证据链实际断裂 |
 | **H2 修复后校验** | 与 `git show HEAD:feature_list.json` 逐字段比对 | 原 19 项 `name`/`description`/`status`/`evidence`/`testedAt`/`rupPhase`/`iteration`/`ownerRole`/`dependencies` **全部一致**，仅新增 H1/H2 两项；21/21 evidence 非空 |
@@ -255,6 +277,8 @@ git push origin main
 - **C16**：`server/app/api/datasources.py`（recover_primary）、`server/app/config/settings.py`（failover_auto_recover / recover_consecutive_checks）、`server/app/main.py`（连续健康触发回切）、`server/tests/conftest.py`（KB_FAILOVER_AUTO_RECOVER=false）、`server/tests/test_datasource_configs_api.py`（+2）；文档 `docs/construction/c16-failover-recover.md` + `c16-failover-recover-evaluation.md`、`docs/API.md` §failover 回切、`docs/RUNBOOK.md` §3b、`docs/elaboration/01-architecture-baseline.md`、`docs/KNOWN_ISSUES.md` MI-14、`evaluator-rubric.md`、`quality-document.md`、`clean-state-checklist.md`、`feature_list.json`（29/29）、`progress.md`。
 - **C17**：`server/app/datasources/base.py`（dump_all）、`server/app/datasources/vector_db_adapter.py`（memory dump_all + dump capability）、`server/app/datasources/elasticsearch_adapter.py`（dump_all + dump capability）、`server/app/observability/migrate.py`（dump/load CLI）、`server/tests/test_migrate.py`（+2）、`server/tests/datasources/test_elasticsearch_adapter.py`（+1）；文档 `docs/construction/c17-data-migration.md` + `c17-data-migration-evaluation.md`、`docs/RUNBOOK.md` §3c、`docs/elaboration/01-architecture-baseline.md`、`docs/KNOWN_ISSUES.md` MI-15、`evaluator-rubric.md`、`quality-document.md`、`clean-state-checklist.md`、`feature_list.json`（30/30）、`progress.md`。
 - **G18**：`server/app/api/ha.py`（新）、`server/app/main.py`（注册 router）、`server/tests/api/test_ha_settings_api.py`（+2）、`desktop/src/shared/types.ts` / `desktop/src/main/api-client.ts` / `desktop/src/preload/index.ts` / `desktop/src/main/index.ts`（getHaSettings）、`desktop/src/renderer/pages/SettingsPage.tsx`（HA Configuration）；文档 `docs/construction/g18-ha-settings-overview.md`、`docs/API.md` §settings/ha、`docs/RUNBOOK.md` §2b、`evaluator-rubric.md`、`quality-document.md`、`clean-state-checklist.md`、`feature_list.json`（31/31）、`progress.md`。
+- **H3**（纯文档轮，零生产代码改动）：`docs/construction/h3-saam-ux-analysis.md`（协议）、`docs/construction/h3-saam-ux-analysis-report.md`（报告）、`feature_list.json`（31/31 → 32/32）、`progress.md` / `evaluator-rubric.md` / `session-handoff.md`。
+- **H4**（纯文档轮，零生产代码改动）：`docs/construction/h4-atam-optimization-plan.md`（协议 + ATAM 分析 + 优化方案）、`feature_list.json`（32/32 → 33/33）、`progress.md` / `evaluator-rubric.md` / `session-handoff.md`。
 - **H1**（纯文档轮，**零生产代码改动**）：`quality-document.md`（9 维 → 11 维 + 全部数值换实测）；`clean-state-checklist.md`（快照 G1 → G7 + `.gitignore` 项改为"已生效" + 新增 2 项未勾选欠账项）；`evaluator-rubric.md`（整篇重写：上下文 T1 → G7 累计 + 双层可观测性补分 + 偏差表 + 后续动作）；`feature_list.json`（仅 `last_updated`）；`progress.md`（实测基线表 + H1 条目 + What's Next 重排）；`session-handoff.md`。
 - **H2**（纯文档轮，**零生产代码改动**）：`docs/PROCESS.md`（重写：新增 §迭代分类与评估策略 + §记录口径约定；修正阶段表 / 当前迭代 / 迭代列表 7 → 21 行）；`docs/construction/h2-process-policy.md`（新建，含 H1 协议补记）；`evaluator-rubric.md`（过程维度重评 3 → 4 + 交接准备度 4 → 5 + 新增重复键偏差行 + 结论 Accept）；`feature_list.json`（+2 条目至 21，修复 5 处重复 `evidence` 键）；`quality-document.md`（两个 B 回升 + Overall A- → A）；`clean-state-checklist.md`（Harness Integrity 段按新政策重写）；`progress.md` / `session-handoff.md`。
 
@@ -311,11 +335,12 @@ git push origin main
 **过程侧已闭环**
 
 1. H2 政策的"自验四项最低要求"与四条升级触发条件已由 G18 实践验证；过程可观测性 4 → 5。
+2. H3/H4 分析已闭环；建议下一实现迭代从 H4 P0 项开始（Search 四态、可读错误文案、导入失败上下文）；P1 涉及新增 schema 端点与状态机拆分，建议按 C 类迭代并出独立评估报告。
 
 **功能候选（挑一个）**
 
-2. （成本最低、闭环最完整）Settings "Test connection" 成功后调 `mark_tested` 写 `last_tested_at` + UI ✓ 标记——后端已就绪，只差一次调用；H1 已确认它是有测试无调用方的死代码。注意：若改动 IPC 协议则命中"破坏性接口变更"，需升级为独立评估。
-3. KI-01（PDF OCR）/ KI-08（Word 图片、批注）/ KI-10（better-sqlite3 cross-compile）——都不阻塞，按实际遭遇频率选。
-4. CI 引入 docker compose 服务化 Milvus，让 1:1 套件 CI 自动跑。
-5. （G18 后续）把 HA 参数做成可编辑持久化（当前只读展示，配置仍通过 `KB_*` env 设置）。
-6. （可选）把 G5 退避抽成 `app/utils/backoff.py`（H1 已确认该文件不存在）；或把迁移接入桌面端 UI / 增加 Milvus dump_all。
+3. （成本最低、闭环最完整）Settings "Test connection" 成功后调 `mark_tested` 写 `last_tested_at` + UI ✓ 标记——后端已就绪，只差一次调用；H1 已确认它是有测试无调用方的死代码。注意：若改动 IPC 协议则命中"破坏性接口变更"，需升级为独立评估。
+4. KI-01（PDF OCR）/ KI-08（Word 图片、批注）/ KI-10（better-sqlite3 cross-compile）——都不阻塞，按实际遭遇频率选。
+5. CI 引入 docker compose 服务化 Milvus，让 1:1 套件 CI 自动跑。
+6. （G18 后续）把 HA 参数做成可编辑持久化（当前只读展示，配置仍通过 `KB_*` env 设置）。
+7. （可选）把 G5 退避抽成 `app/utils/backoff.py`（H1 已确认该文件不存在）；或把迁移接入桌面端 UI / 增加 Milvus dump_all。

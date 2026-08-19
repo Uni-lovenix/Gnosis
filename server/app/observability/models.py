@@ -45,6 +45,7 @@ class Hit(BaseModel):
     score: float
     text: str
     metadata: dict[str, Any] = Field(default_factory=dict)
+    document_id: str | None = None
 
 
 class ChunkSummary(BaseModel):

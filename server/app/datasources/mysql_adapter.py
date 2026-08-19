@@ -183,7 +183,7 @@ class MysqlAdapter(DataSource):
                 where.append("JSON_EXTRACT(metadata, %s) = %s")
                 params.extend([f"$.{k}", json.dumps(v)])
         sql = (
-            f"SELECT id, text, metadata, vector FROM {self._table} "
+            f"SELECT id, document_id, text, metadata, vector FROM {self._table} "
             f"WHERE {' AND '.join(where)} LIMIT {self._max_scan}"
         )
         scored: list[Hit] = []
@@ -191,11 +191,17 @@ class MysqlAdapter(DataSource):
             cur.execute(sql, params)
             rows = cur.fetchall()
             scanned = len(rows)
-            for cid, text, metadata, vec_json in rows:
+            for cid, document_id, text, metadata, vec_json in rows:
                 v = json.loads(vec_json) if isinstance(vec_json, (str, bytes)) else vec_json
                 score = _cosine(vector, v)
                 scored.append(
-                    Hit(id=cid, score=score, text=text, metadata=_loads(metadata))
+                    Hit(
+                        id=cid,
+                        document_id=document_id,
+                        score=score,
+                        text=text,
+                        metadata=_loads(metadata),
+                    )
                 )
         # KI-02: when the scan returned >= max_scan_rows, results are likely
         # truncated. Surface a structured warning so operators can pivot to

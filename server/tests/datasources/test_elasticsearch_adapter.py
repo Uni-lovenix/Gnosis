@@ -117,6 +117,7 @@ async def test_es_search_uses_knn(patched_es):
     hits = await adapter.search([1.0, 0.0, 0.0, 0.0], top_k=3)
     assert len(hits) == 1
     assert hits[0].text == "hello"
+    assert hits[0].document_id == "d1"
     assert patched_es.search_calls
     body = patched_es.search_calls[-1]
     assert body["knn"]["field"] == "vector"

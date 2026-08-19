@@ -11,6 +11,8 @@ DELETE /v1/datasources/active             — clear the active pointer
 """
 from __future__ import annotations
 
+from typing import Any, Literal
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -67,6 +69,212 @@ class DatasourceInfo(BaseModel):
     name: str
     type: str
     capabilities: list[str]
+
+
+class DatasourceSchemaField(BaseModel):
+    """One editable option for a datasource adapter type.
+
+    ``sensitive`` is used by the UI to render password inputs and to keep
+    secret values out of visible form summaries; the server never logs
+    option values either way.
+    """
+
+    key: str
+    label: str
+    type: Literal["text", "password", "number", "boolean", "select", "list"]
+    required: bool = False
+    sensitive: bool = False
+    default: Any = None
+    help: str = ""
+    options: list[str] = Field(default_factory=list)
+
+
+class DatasourceSchema(BaseModel):
+    type: str
+    label: str
+    fields: list[DatasourceSchemaField]
+
+
+OPTIONS_SCHEMAS: dict[str, DatasourceSchema] = {
+    "vector": DatasourceSchema(
+        type="vector",
+        label="向量数据库",
+        fields=[
+            DatasourceSchemaField(
+                key="backend",
+                label="后端",
+                type="select",
+                required=True,
+                default="memory",
+                options=["memory", "milvus"],
+                help="memory 适合小规模个人库；milvus 适合更大规模向量检索。",
+            ),
+            DatasourceSchemaField(
+                key="collection",
+                label="Collection",
+                type="text",
+                default="kb_chunks",
+                help="Milvus 后端使用。",
+            ),
+            DatasourceSchemaField(
+                key="dim",
+                label="向量维度",
+                type="number",
+                default=1024,
+                help="必须与 Embedding 模型输出维度一致，bge-m3 为 1024。",
+            ),
+            DatasourceSchemaField(
+                key="uri",
+                label="Milvus URI",
+                type="text",
+                default="http://127.0.0.1:19530",
+                help="Milvus 后端使用。",
+            ),
+        ],
+    ),
+    "elasticsearch": DatasourceSchema(
+        type="elasticsearch",
+        label="Elasticsearch 8+",
+        fields=[
+            DatasourceSchemaField(
+                key="hosts",
+                label="节点地址",
+                type="list",
+                required=True,
+                default=["http://127.0.0.1:9200"],
+                help="JSON 数组，例如 [\"http://127.0.0.1:9200\"]。",
+            ),
+            DatasourceSchemaField(
+                key="index",
+                label="索引",
+                type="text",
+                default="kb_chunks",
+            ),
+            DatasourceSchemaField(
+                key="dim",
+                label="向量维度",
+                type="number",
+                default=1024,
+            ),
+            DatasourceSchemaField(
+                key="username",
+                label="用户名",
+                type="text",
+            ),
+            DatasourceSchemaField(
+                key="password",
+                label="密码",
+                type="password",
+                sensitive=True,
+            ),
+            DatasourceSchemaField(
+                key="api_key",
+                label="API Key",
+                type="password",
+                sensitive=True,
+            ),
+            DatasourceSchemaField(
+                key="verify_certs",
+                label="校验证书",
+                type="boolean",
+                default=True,
+            ),
+        ],
+    ),
+    "postgresql": DatasourceSchema(
+        type="postgresql",
+        label="PostgreSQL (pgvector)",
+        fields=[
+            DatasourceSchemaField(
+                key="dsn",
+                label="DSN",
+                type="text",
+                required=True,
+                sensitive=True,
+                default="postgresql://postgres:postgres@127.0.0.1:5432/postgres",
+                help="可能包含凭证，请按本地权限妥善保管。",
+            ),
+            DatasourceSchemaField(
+                key="table",
+                label="数据表",
+                type="text",
+                default="kb_chunks",
+            ),
+            DatasourceSchemaField(
+                key="dim",
+                label="向量维度",
+                type="number",
+                default=1024,
+            ),
+        ],
+    ),
+    "mysql": DatasourceSchema(
+        type="mysql",
+        label="MySQL",
+        fields=[
+            DatasourceSchemaField(
+                key="host",
+                label="主机",
+                type="text",
+                default="127.0.0.1",
+            ),
+            DatasourceSchemaField(
+                key="port",
+                label="端口",
+                type="number",
+                default=3306,
+            ),
+            DatasourceSchemaField(
+                key="user",
+                label="用户",
+                type="text",
+                default="root",
+            ),
+            DatasourceSchemaField(
+                key="password",
+                label="密码",
+                type="password",
+                sensitive=True,
+                default="",
+            ),
+            DatasourceSchemaField(
+                key="database",
+                label="数据库",
+                type="text",
+                default="kb",
+            ),
+            DatasourceSchemaField(
+                key="table",
+                label="数据表",
+                type="text",
+                default="kb_chunks",
+            ),
+            DatasourceSchemaField(
+                key="dim",
+                label="向量维度",
+                type="number",
+                default=1024,
+            ),
+            DatasourceSchemaField(
+                key="max_scan_rows",
+                label="最大扫描行数",
+                type="number",
+                default=100_000,
+                help="MySQL 适配器为 O(N) 扫描，建议仅用于小规模知识库。",
+            ),
+        ],
+    ),
+}
+
+
+@router.get("/schemas", response_model=dict[str, DatasourceSchema])
+async def list_schemas() -> dict[str, DatasourceSchema]:
+    """Return per-adapter option schemas for the Settings form.
+
+    This is a read-only catalog: the server does not persist the schema, and
+    existing JSON-only configs keep working unchanged.
+    """
+    return {type_name: OPTIONS_SCHEMAS[type_name] for type_name in all_types() if type_name in OPTIONS_SCHEMAS}
 
 
 @router.get("", response_model=list[DatasourceInfo])
@@ -313,6 +521,24 @@ async def upsert_config(req: DatasourceConfigUpsert) -> DatasourceConfigResponse
         options=saved.get("options", {}),
         saved_at=saved.get("saved_at", ""),
         last_tested_at=saved.get("last_tested_at"),
+    )
+
+
+@router.post("/configs/{name}/tested", response_model=DatasourceConfigResponse)
+async def mark_config_tested(name: str) -> DatasourceConfigResponse:
+    """Stamp ``last_tested_at`` after the user verifies a saved config."""
+    store = _store_required()
+    cfg = store.get(name)
+    if cfg is None:
+        raise HTTPException(status_code=404, detail=f"no such datasource config: {name}")
+    store.mark_tested(name)
+    cfg = store.get(name)
+    return DatasourceConfigResponse(
+        name=cfg["name"],
+        type=cfg["type"],
+        options=cfg.get("options", {}),
+        saved_at=cfg.get("saved_at", ""),
+        last_tested_at=cfg.get("last_tested_at"),
     )
 
 
